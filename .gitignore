@@ -1,0 +1,7 @@
+target/
+**/*.o
+**/*.bin
+**/*.efi
+*.img
+*.iso
+build/
