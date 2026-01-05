@@ -1,0 +1,28 @@
+name: Build and Test
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        run: |
+          rustup show
+
+      - name: Format check
+        run: cargo fmt --check --all
+
+      - name: Build bootloader
+        run: cargo build --package bootloader --target x86_64-unknown-uefi
+
+      - name: Build kernel
+        run: cargo build --package kernel --target x86_64-unknown-none
+
+      - name: QEMU smoke test
+        run: |
+          sudo apt-get install -y qemu-system-x86-64
+          python3 -m pytest tests/boot/ -v
