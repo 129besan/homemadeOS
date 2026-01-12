@@ -10,11 +10,31 @@ mod uefi;
 use core::ffi::c_void;
 use elf_loader::{validate_elf, program_headers, Elf64Header, PT_LOAD};
 use handoff::BootInfo;
+use memory_map::MemoryDescriptor;
 use uefi::SystemTable;
+
+static mut BOOT_INFO: BootInfo = BootInfo {
+    memory_map_ptr: 0,
+    memory_map_len: 0,
+    framebuffer_base: 0,
+    framebuffer_width: 0,
+    framebuffer_height: 0,
+    framebuffer_stride: 0,
+    framebuffer_format: handoff::PixelFormat::PixelBltOnly,
+    kernel_phys_start: 0,
+    kernel_phys_end: 0,
+    initramfs_start: 0,
+    initramfs_len: 0,
+    rsdp_addr: 0,
+};
 
 #[panic_handler]
 fn panic(_info: &core::panic::Panick_info) -> ! {
     loop {}
+}
+
+fn kernel_phys_range() -> (u64, u64) {
+    (0x100000, 0x200000)
 }
 
 fn load_kernel(data: &[u8]) -> Option<u64> {
