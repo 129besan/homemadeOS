@@ -85,5 +85,12 @@ pub extern "efiapi" fn efi_main(
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
 
+    let bt = st.boot_services;
+    if !bt.is_null() {
+        let exit: extern "efiapi" fn(*mut c_void, usize, usize) -> usize =
+            unsafe { core::mem::transmute((*bt).exit_boot_services) };
+        let _ = exit(_image_handle, 0, 0);
+    }
+
     loop {}
 }
