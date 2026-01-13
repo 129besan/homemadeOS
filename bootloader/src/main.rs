@@ -73,13 +73,17 @@ pub extern "efiapi" fn efi_main(
 ) -> ! {
     let st = unsafe { &*system_table };
 
-    let msg: &[u16] = &[
+    let hello: &[u16] = &[
         'H' as u16, 'e' as u16, 'l' as u16, 'l' as u16, 'o' as u16,
         ' ' as u16, 'f' as u16, 'r' as u16, 'o' as u16, 'm' as u16,
         ' ' as u16, 'M' as u16, 'y' as u16, 'O' as u16, 'S' as u16,
         '!' as u16, '\r' as u16, '\n' as u16, 0,
     ];
-    uefi::print(st, msg);
+    uefi::print(st, hello);
+
+    let boot_info = unsafe { &mut BOOT_INFO };
+    boot_info.initramfs_start = 0;
+    boot_info.initramfs_len = 0;
 
     loop {}
 }
