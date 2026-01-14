@@ -92,5 +92,7 @@ pub extern "efiapi" fn efi_main(
         let _ = exit(_image_handle, 0, 0);
     }
 
-    loop {}
+    let entry: extern "C" fn(*const BootInfo) -> ! =
+        unsafe { core::mem::transmute(boot_info.kernel_phys_start as usize) };
+    entry(&BOOT_INFO as *const BootInfo);
 }
