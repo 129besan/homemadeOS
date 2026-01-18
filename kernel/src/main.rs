@@ -25,7 +25,9 @@ mod arch;
 
 #[panic_handler]
 fn panic(_info: &core::panic::Panick_info) -> ! {
-    loop {}
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
 }
 
 #[no_mangle]
@@ -34,5 +36,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
         BOOT_INFO = Some(boot_info);
     }
     arch::boot::init();
-    loop {}
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
 }
