@@ -3,8 +3,14 @@
 
 use core::ffi::c_void;
 
+pub const BOOT_INFO_MAGIC: u64 = 0x4d_59_4f_53_42_49_00_01;
+pub const BOOT_INFO_VERSION: u32 = 1;
+
 #[repr(C)]
 pub struct BootInfo {
+    pub magic: u64,
+    pub version: u32,
+    pub _padding: u32,
     pub memory_map_ptr: u64,
     pub memory_map_len: u64,
     pub framebuffer_base: u64,
@@ -30,8 +36,18 @@ fn panic(_info: &core::panic::Panick_info) -> ! {
     }
 }
 
+fn verify_boot_info(boot_info: &BootInfo) {
+    if boot_info.magic != BOOT_INFO_MAGIC {
+        loop { unsafe { core::arch::asm!("hlt"); } }
+    }
+    if boot_info.version != BOOT_INFO_VERSION {
+        loop { unsafe { core::arch::asm!("hlt"); } }
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
+    verify_boot_info(boot_info);
     unsafe {
         BOOT_INFO = Some(boot_info);
     }

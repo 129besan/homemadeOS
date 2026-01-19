@@ -14,6 +14,9 @@ use memory_map::MemoryDescriptor;
 use uefi::SystemTable;
 
 static mut BOOT_INFO: BootInfo = BootInfo {
+    magic: handoff::BOOT_INFO_MAGIC,
+    version: handoff::BOOT_INFO_VERSION,
+    _padding: 0,
     memory_map_ptr: 0,
     memory_map_len: 0,
     framebuffer_base: 0,
