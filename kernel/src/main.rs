@@ -28,6 +28,8 @@ pub struct BootInfo {
 pub static mut BOOT_INFO: Option<&'static BootInfo> = None;
 
 mod arch;
+pub mod drivers;
+pub mod log;
 
 #[panic_handler]
 fn panic(_info: &core::panic::Panick_info) -> ! {
@@ -51,6 +53,8 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     unsafe {
         BOOT_INFO = Some(boot_info);
     }
+    drivers::serial::init();
+    kprintln!("kernel started");
     arch::boot::init();
     loop {
         unsafe { core::arch::asm!("hlt"); }
