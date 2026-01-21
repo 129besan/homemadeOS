@@ -55,6 +55,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     }
     drivers::serial::init();
     kprintln!("kernel started");
+    log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
+    log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
+    log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
     arch::boot::init();
     loop {
         unsafe { core::arch::asm!("hlt"); }
