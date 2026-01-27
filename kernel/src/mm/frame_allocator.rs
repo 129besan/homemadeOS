@@ -8,6 +8,33 @@ pub struct FrameAllocator {
     used_frames: usize,
 }
 
+pub fn init_from_boot_info(boot_info: &BootInfo) -> FrameAllocator {
+    let total_memory = detect_total_memory(boot_info);
+    let total_frames = (total_memory / PAGE_SIZE) as usize;
+    let bitmap_size = (total_frames + 63) / 64;
+    let bitmap_phys = boot_info.kernel_phys_end;
+    let bitmap: &'static mut [u64] = unsafe {
+        core::slice::from_raw_parts_mut(bitmap_phys as *mut u64, bitmap_size)
+    };
+    for slot in bitmap.iter_mut() {
+        *slot = 0;
+    }
+    FrameAllocator::new(bitmap, total_frames)
+}
+
+fn detect_total_memory(boot_info: &BootInfo) -> u64 {
+    use crate::mm::memory_map::parse_memory_map;
+    let regions = parse_memory_map(boot_info);
+    let mut max: u64 = 0;
+    for r in regions {
+        let end = r.start + r.length;
+        if end > max {
+            max = end;
+        }
+    }
+    max
+}
+
 impl FrameAllocator {
     pub fn new(bitmap: &'static mut [u64], total_frames: usize) -> Self {
         FrameAllocator {
