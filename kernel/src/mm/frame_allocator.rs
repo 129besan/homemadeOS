@@ -44,6 +44,22 @@ impl FrameAllocator {
         }
     }
 
+    pub fn alloc(&mut self) -> Option<PhysFrame> {
+        for i in 0..self.total_frames {
+            let idx = i / 64;
+            let bit = i % 64;
+            if idx >= self.bitmap.len() {
+                break;
+            }
+            if (self.bitmap[idx] & (1 << bit)) == 0 {
+                self.bitmap[idx] |= 1 << bit;
+                self.used_frames += 1;
+                return Some(PhysFrame { number: i as u64 });
+            }
+        }
+        None
+    }
+
     pub fn reserve_region(&mut self, start: PhysAddr, length: usize) {
         let first_frame = PhysFrame::from_addr(start).number as usize;
         let num_frames = (length + PAGE_SIZE as usize - 1) / PAGE_SIZE as usize;
