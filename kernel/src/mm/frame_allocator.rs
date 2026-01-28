@@ -89,6 +89,20 @@ impl FrameAllocator {
         }
     }
 
+    pub fn dealloc(&mut self, frame: PhysFrame) {
+        let i = frame.number as usize;
+        if i >= self.total_frames {
+            return;
+        }
+        let idx = i / 64;
+        let bit = i % 64;
+        if idx < self.bitmap.len() {
+            let old = self.bitmap[idx];
+            self.bitmap[idx] = old & !(1 << bit);
+            self.used_frames -= 1;
+        }
+    }
+
     fn set_used(&mut self, frame: usize) {
         let idx = frame / 64;
         let bit = frame % 64;
