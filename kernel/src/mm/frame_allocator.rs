@@ -44,6 +44,10 @@ impl FrameAllocator {
         }
     }
 
+    pub fn stats(&self) -> (usize, usize, usize) {
+        (self.total_frames, self.used_frames, self.total_frames - self.used_frames)
+    }
+
     pub fn alloc(&mut self) -> Option<PhysFrame> {
         for i in 0..self.total_frames {
             let idx = i / 64;
