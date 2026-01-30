@@ -2,12 +2,6 @@ use crate::mm::addr::{PhysAddr, PhysFrame, PAGE_SIZE};
 use crate::mm::memory_map::MemoryRegion;
 use crate::BootInfo;
 
-pub struct FrameAllocator {
-    bitmap: &'static mut [u64],
-    total_frames: usize,
-    used_frames: usize,
-}
-
 pub fn init_from_boot_info(boot_info: &BootInfo) -> FrameAllocator {
     let total_memory = detect_total_memory(boot_info);
     let total_frames = (total_memory / PAGE_SIZE) as usize;
@@ -33,6 +27,12 @@ fn detect_total_memory(boot_info: &BootInfo) -> u64 {
         }
     }
     max
+}
+
+pub struct FrameAllocator {
+    bitmap: &'static mut [u64],
+    total_frames: usize,
+    used_frames: usize,
 }
 
 impl FrameAllocator {
@@ -64,6 +64,20 @@ impl FrameAllocator {
         None
     }
 
+    pub fn dealloc(&mut self, frame: PhysFrame) {
+        let i = frame.number as usize;
+        if i >= self.total_frames {
+            return;
+        }
+        let idx = i / 64;
+        let bit = i % 64;
+        if idx < self.bitmap.len() {
+            let old = self.bitmap[idx];
+            self.bitmap[idx] = old & !(1 << bit);
+            self.used_frames -= 1;
+        }
+    }
+
     pub fn reserve_region(&mut self, start: PhysAddr, length: usize) {
         let first_frame = PhysFrame::from_addr(start).number as usize;
         let num_frames = (length + PAGE_SIZE as usize - 1) / PAGE_SIZE as usize;
@@ -93,20 +107,6 @@ impl FrameAllocator {
         }
     }
 
-    pub fn dealloc(&mut self, frame: PhysFrame) {
-        let i = frame.number as usize;
-        if i >= self.total_frames {
-            return;
-        }
-        let idx = i / 64;
-        let bit = i % 64;
-        if idx < self.bitmap.len() {
-            let old = self.bitmap[idx];
-            self.bitmap[idx] = old & !(1 << bit);
-            self.used_frames -= 1;
-        }
-    }
-
     fn set_used(&mut self, frame: usize) {
         let idx = frame / 64;
         let bit = frame % 64;
@@ -115,13 +115,40 @@ impl FrameAllocator {
             self.bitmap[idx] = old | (1 << bit);
         }
     }
+}
 
-    fn set_free(&mut self, frame: usize) {
-        let idx = frame / 64;
-        let bit = frame % 64;
-        if idx < self.bitmap.len() {
-            let old = self.bitmap[idx];
-            self.bitmap[idx] = old & !(1 << bit);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_alloc_free() {
+        let mut bitmap = [0u64; 16];
+        let mut alloc = FrameAllocator::new(&mut bitmap, 64);
+        let frame = alloc.alloc().expect("should allocate");
+        assert_eq!(frame.number, 0);
+        assert_eq!(alloc.used_frames, 1);
+        alloc.dealloc(frame);
+        assert_eq!(alloc.used_frames, 0);
+        let frame2 = alloc.alloc().expect("should allocate again");
+        assert_eq!(frame2.number, 0);
+    }
+
+    #[test]
+    fn test_exhaustion() {
+        let mut bitmap = [0u64; 1];
+        let mut alloc = FrameAllocator::new(&mut bitmap, 4);
+        for i in 0..4 {
+            assert!(alloc.alloc().is_some(), "frame {} should alloc", i);
         }
+        assert!(alloc.alloc().is_none(), "should be exhausted");
+    }
+
+    #[test]
+    fn test_reserve_region() {
+        let mut bitmap = [0u64; 16];
+        let mut alloc = FrameAllocator::new(&mut bitmap, 64);
+        alloc.reserve_region(PhysAddr(0), 8192);
+        assert!(alloc.alloc().map(|f| f.number) > Some(1));
     }
 }
