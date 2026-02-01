@@ -1,5 +1,6 @@
-use crate::mm::addr::{PhysAddr, VirtAddr};
+use crate::mm::addr::{PhysAddr, VirtAddr, PhysFrame};
 use crate::mm::paging::flags::PageFlags;
+use crate::mm::frame_allocator::FrameAllocator;
 
 #[repr(C, align(4096))]
 pub struct PageTable {
@@ -62,6 +63,35 @@ impl<'a> PageTableWalker<'a> {
         }
         Err(())
     }
+}
+
+pub fn map_page(
+    pml4: &mut PageTable,
+    virt: VirtAddr,
+    phys: PhysAddr,
+    flags: PageFlags,
+    allocator: &mut FrameAllocator,
+) -> Result<(), ()> {
+    let indices = virt_indices(virt);
+    let mut table = pml4;
+
+    for &level in &indices[..3] {
+        let entry = &mut table.entries[level as usize];
+        if !entry.is_present() {
+            let frame = allocator.alloc().ok_or(())?;
+            let new_table = unsafe { &mut *(frame.start_addr().0 as *mut PageTable) };
+            for e in new_table.entries.iter_mut() {
+                e.0 = 0;
+            }
+            entry.set_addr(frame.start_addr(), PageFlags::PRESENT | PageFlags::WRITABLE);
+        }
+        let next = entry.addr();
+        table = unsafe { &mut *(next.0 as *mut PageTable) };
+    }
+
+    let entry = &mut table.entries[indices[3] as usize];
+    entry.set_addr(phys, flags | PageFlags::PRESENT);
+    Ok(())
 }
 
 pub fn walk_page_table(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {
