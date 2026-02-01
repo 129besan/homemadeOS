@@ -31,6 +31,39 @@ impl PageTableEntry {
     }
 }
 
+pub struct PageTableWalker<'a> {
+    level: usize,
+    tables: [&'a PageTable; 4],
+}
+
+impl<'a> PageTableWalker<'a> {
+    pub fn new(pml4: &'a PageTable) -> Self {
+        PageTableWalker {
+            level: 0,
+            tables: [pml4, pml4, pml4, pml4],
+        }
+    }
+
+    pub fn walk(&mut self, virt: VirtAddr) -> Result<&mut PageTableEntry, ()> {
+        let indices = virt_indices(virt);
+        for level in 0..4 {
+            let table = &self.tables[level];
+            let entry = unsafe {
+                &mut *(&table.entries[indices[level]] as *const PageTableEntry as *mut PageTableEntry)
+            };
+            if level == 3 {
+                return Ok(entry);
+            }
+            if !entry.is_present() {
+                return Err(());
+            }
+            let next_table = unsafe { &mut *(entry.addr().0 as *mut PageTable) };
+            self.tables[level + 1] = next_table;
+        }
+        Err(())
+    }
+}
+
 pub fn walk_page_table(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {
     let indices = virt_indices(virt);
     let mut table = pml4;
