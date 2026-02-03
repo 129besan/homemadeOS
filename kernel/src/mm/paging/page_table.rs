@@ -94,6 +94,18 @@ pub fn map_page(
     Ok(())
 }
 
+pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> {
+    let mut walker = PageTableWalker::new(pml4);
+    let entry = walker.walk(virt)?;
+    if !entry.is_present() {
+        return Err(());
+    }
+    let phys = entry.addr();
+    entry.0 = 0;
+    unsafe { core::arch::asm!("invlpg ({0})", in(reg) virt.0, options(nostack, preserves_flags)) };
+    Ok(phys)
+}
+
 pub fn walk_page_table(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {
     let indices = virt_indices(virt);
     let mut table = pml4;
