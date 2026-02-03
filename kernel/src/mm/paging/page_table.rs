@@ -106,20 +106,25 @@ pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> 
     Ok(phys)
 }
 
-pub fn walk_page_table(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {
+pub fn translate(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {
     let indices = virt_indices(virt);
     let mut table = pml4;
+    let offset = virt.0 & 0xfff;
 
-    for &level in &indices {
-        let entry = &table.entries[level as usize];
+    for (level, &i) in indices.iter().enumerate() {
+        let entry = &table.entries[i as usize];
         if !entry.is_present() {
             return None;
+        }
+        if level == 3 {
+            let phys = entry.addr().0 | offset;
+            return Some(PhysAddr(phys));
         }
         let next = entry.addr();
         table = unsafe { &*(next.0 as *const PageTable) };
     }
 
-    Some(PhysAddr(virt.0))
+    None
 }
 
 pub fn virt_indices(virt: VirtAddr) -> [usize; 4] {
