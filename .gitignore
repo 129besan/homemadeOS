@@ -5,3 +5,6 @@ target/
 *.img
 *.iso
 build/
+hiduke.md
+AGENTS.md
+opencode.json
