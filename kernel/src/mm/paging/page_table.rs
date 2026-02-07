@@ -136,3 +136,35 @@ pub fn virt_indices(virt: VirtAddr) -> [usize; 4] {
         ((v >> 12) & 0x1ff) as usize,
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_virt_indices() {
+        let v = VirtAddr(0xffff_8000_0000_0000);
+        let idx = virt_indices(v);
+        assert_eq!(idx[0], 0x1ff);
+        assert_eq!(idx[1], 0x000);
+        assert_eq!(idx[2], 0x000);
+        assert_eq!(idx[3], 0x000);
+    }
+
+    #[test]
+    fn test_page_table_entry() {
+        let mut entry = PageTableEntry::new();
+        assert!(!entry.is_present());
+        entry.set_addr(PhysAddr(0x1000), PageFlags::PRESENT | PageFlags::WRITABLE);
+        assert!(entry.is_present());
+        assert_eq!(entry.addr(), PhysAddr(0x1000));
+        assert!(entry.flags().contains(PageFlags::WRITABLE));
+    }
+
+    #[test]
+    fn test_translate_not_mapped() {
+        let mut table = PageTable { entries: [PageTableEntry(0); 512] };
+        let v = VirtAddr(0x1000);
+        assert!(translate(&table, v).is_none());
+    }
+}
