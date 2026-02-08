@@ -29,7 +29,13 @@ pub static mut BOOT_INFO: Option<&'static BootInfo> = None;
 
 mod arch;
 pub mod drivers;
+pub mod mm;
 pub mod log;
+
+use mm::heap::BumpAllocator;
+
+#[global_allocator]
+pub static ALLOCATOR: BumpAllocator = BumpAllocator::new();
 
 #[panic_handler]
 fn panic(_info: &core::panic::Panick_info) -> ! {
@@ -55,6 +61,10 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     }
     drivers::serial::init();
     kprintln!("kernel started");
+
+    unsafe {
+        ALLOCATOR.init(0xffff_9000_0000_0000 as usize, 4 * 1024 * 1024);
+    }
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
     log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
