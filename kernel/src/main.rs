@@ -63,7 +63,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     kprintln!("kernel started");
 
     unsafe {
-        ALLOCATOR.init(0xffff_9000_0000_0000 as usize, 4 * 1024 * 1024);
+        ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);
     }
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);

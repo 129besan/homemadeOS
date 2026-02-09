@@ -1,6 +1,10 @@
 use core::alloc::{GlobalAlloc, Layout};
 use core::sync::atomic::{AtomicUsize, Ordering};
 
+pub const HEAP_START: usize = 0xffff_9000_0000_0000;
+pub const HEAP_SIZE: usize = 4 * 1024 * 1024;
+pub const HEAP_END: usize = HEAP_START + HEAP_SIZE;
+
 pub struct BumpAllocator {
     heap_start: usize,
     heap_end: usize,
