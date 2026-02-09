@@ -25,6 +25,10 @@ impl BumpAllocator {
         self.heap_end = start + size;
         self.next.store(start, Ordering::SeqCst);
     }
+
+    pub fn grow(&mut self, additional: usize) {
+        self.heap_end += additional;
+    }
 }
 
 unsafe impl GlobalAlloc for BumpAllocator {
