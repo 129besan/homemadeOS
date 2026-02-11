@@ -81,10 +81,36 @@ unsafe impl GlobalAlloc for LinkedListAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let block = unsafe { &mut *(ptr as *mut FreeBlock) };
+        let mut block = unsafe { &mut *(ptr as *mut FreeBlock) };
         block.size = layout.size().max(16);
+
         let head = self.head as *const Option<&'static mut FreeBlock> as *mut Option<&'static mut FreeBlock>;
-        block.next = (*head).take();
-        *head = Some(unsafe { &mut *(ptr as *mut FreeBlock) });
+        let current = &mut *head;
+
+        let block_addr = ptr as usize;
+        let block_end = block_addr + block.size;
+
+        let mut prev: *mut Option<&'static mut FreeBlock> = current;
+        let mut entry = current.as_mut().and_then(|b| b.next.take());
+
+        while let Some(ref mut b) = entry {
+            let b_addr = b as *const FreeBlock as usize;
+            if b_addr > block_addr {
+                break;
+            }
+            let b_end = b_addr + b.size;
+            if b_end == block_addr {
+                b.size += block.size;
+                *prev = Some(unsafe { &mut *(b as *mut FreeBlock) });
+                return;
+            }
+            let saved = Some(unsafe { &mut *(b as *mut FreeBlock) });
+            *prev = saved;
+            prev = &mut b.next;
+            entry = b.next.as_mut().and_then(|b| Some(b));
+        }
+
+        block.next = entry;
+        *prev = Some(block);
     }
 }
