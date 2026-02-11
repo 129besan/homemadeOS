@@ -1,53 +1,90 @@
 use core::alloc::{GlobalAlloc, Layout};
-use core::sync::atomic::{AtomicUsize, Ordering};
 
 pub const HEAP_START: usize = 0xffff_9000_0000_0000;
 pub const HEAP_SIZE: usize = 4 * 1024 * 1024;
 pub const HEAP_END: usize = HEAP_START + HEAP_SIZE;
 
-pub struct BumpAllocator {
+pub struct LinkedListAllocator {
+    head: Option<&'static mut FreeBlock>,
     heap_start: usize,
     heap_end: usize,
-    next: AtomicUsize,
 }
 
-impl BumpAllocator {
+struct FreeBlock {
+    size: usize,
+    next: Option<&'static mut FreeBlock>,
+}
+
+impl LinkedListAllocator {
     pub const fn new() -> Self {
-        BumpAllocator {
+        LinkedListAllocator {
+            head: None,
             heap_start: 0,
             heap_end: 0,
-            next: AtomicUsize::new(0),
         }
     }
 
     pub fn init(&mut self, start: usize, size: usize) {
         self.heap_start = start;
         self.heap_end = start + size;
-        self.next.store(start, Ordering::SeqCst);
+        let block = unsafe { &mut *(start as *mut FreeBlock) };
+        block.size = size;
+        block.next = None;
+        self.head = Some(unsafe { &mut *(start as *mut FreeBlock) });
     }
 
     pub fn grow(&mut self, additional: usize) {
+        let old_end = self.heap_end;
         self.heap_end += additional;
+        let block = unsafe { &mut *(old_end as *mut FreeBlock) };
+        block.size = additional;
+        block.next = self.head.take();
+        self.head = Some(block);
     }
 }
 
-unsafe impl GlobalAlloc for BumpAllocator {
+unsafe impl GlobalAlloc for LinkedListAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let align = layout.align();
-        let size = layout.size();
-        loop {
-            let current = self.next.load(Ordering::SeqCst);
-            let next = (current + align - 1) & !(align - 1);
-            let end = next + size;
-            if end > self.heap_end {
-                return core::ptr::null_mut();
+        let size = layout.size().max(16);
+        let align = layout.align().max(16);
+        let head = self.head as *const Option<&'static mut FreeBlock> as *mut Option<&'static mut FreeBlock>;
+        let current = &mut *head;
+
+        let mut prev: *mut Option<&'static mut FreeBlock> = current;
+        let mut block = current.as_mut().and_then(|b| b.next.take());
+
+        while let Some(mut b) = block {
+            let addr = b as *const FreeBlock as usize;
+            let aligned = (addr + align - 1) & !(align - 1);
+            let header_size = aligned - addr;
+
+            if b.size >= size + header_size {
+                let remaining = b.size - size - header_size;
+                if remaining > 16 {
+                    let new_block = unsafe { &mut *((aligned + size) as *mut FreeBlock) };
+                    new_block.size = remaining;
+                    new_block.next = b.next.take();
+                    *prev = Some(new_block);
+                } else {
+                    *prev = b.next.take();
+                }
+                *head = *prev;
+                return aligned as *mut u8;
             }
-            if self.next.compare_exchange_weak(current, end, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
-                return next as *mut u8;
-            }
+
+            *prev = Some(b);
+            prev = &mut b.next;
+            block = b.next.as_mut().and_then(|b| Some(b));
         }
+
+        core::ptr::null_mut()
     }
 
-    unsafe fn dealloc(&self, _ptr: *mut u8, _layout: Layout) {
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let block = unsafe { &mut *(ptr as *mut FreeBlock) };
+        block.size = layout.size().max(16);
+        let head = self.head as *const Option<&'static mut FreeBlock> as *mut Option<&'static mut FreeBlock>;
+        block.next = (*head).take();
+        *head = Some(unsafe { &mut *(ptr as *mut FreeBlock) });
     }
 }

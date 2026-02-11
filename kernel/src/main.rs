@@ -32,10 +32,10 @@ pub mod drivers;
 pub mod mm;
 pub mod log;
 
-use mm::heap::BumpAllocator;
+use mm::heap::LinkedListAllocator;
 
 #[global_allocator]
-pub static ALLOCATOR: BumpAllocator = BumpAllocator::new();
+pub static ALLOCATOR: LinkedListAllocator = LinkedListAllocator::new();
 
 #[panic_handler]
 fn panic(_info: &core::panic::Panick_info) -> ! {
