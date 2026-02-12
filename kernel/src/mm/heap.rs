@@ -114,3 +114,42 @@ unsafe impl GlobalAlloc for LinkedListAllocator {
         *prev = Some(block);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_alloc_dealloc() {
+        let mut heap = LinkedListAllocator::new();
+        let mut mem = [0u8; 4096];
+        heap.init(mem.as_ptr() as usize, mem.len());
+
+        unsafe {
+            let p = heap.alloc(Layout::new::<u64>());
+            assert!(!p.is_null());
+            *(p as *mut u64) = 42;
+            assert_eq!(*(p as *mut u64), 42);
+            heap.dealloc(p, Layout::new::<u64>());
+        }
+    }
+
+    #[test]
+    fn test_multiple_alloc() {
+        let mut heap = LinkedListAllocator::new();
+        let mut mem = [0u8; 8192];
+        heap.init(mem.as_ptr() as usize, mem.len());
+
+        unsafe {
+            let a = heap.alloc(Layout::new::<u64>());
+            let b = heap.alloc(Layout::new::<u64>());
+            let c = heap.alloc(Layout::new::<u64>());
+            assert!(!a.is_null());
+            assert!(!b.is_null());
+            assert!(!c.is_null());
+            heap.dealloc(b, Layout::new::<u64>());
+            heap.dealloc(a, Layout::new::<u64>());
+            heap.dealloc(c, Layout::new::<u64>());
+        }
+    }
+}
