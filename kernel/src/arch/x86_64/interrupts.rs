@@ -31,7 +31,11 @@ extern "x86-interrupt" fn exc_gpf(_frame: &mut InterruptFrame) {
 extern "x86-interrupt" fn exc_page_fault(frame: &mut InterruptFrame) {
     let cr2: u64;
     unsafe { core::arch::asm!("mov {0}, cr2", out(reg) cr2) };
-    crate::kprintln!("page fault at {:#x}, ip={:#x}", cr2, frame.ip);
+    let err = PageFaultError(error_code);
+    crate::kprintln!(
+        "page fault at {:#x}, ip={:#x}, present={}, write={}, user={}",
+        cr2, frame.ip, err.present(), err.write(), err.user(),
+    );
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
