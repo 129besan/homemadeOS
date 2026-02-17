@@ -1,4 +1,12 @@
 use crate::arch::x86_64::idt::Idt;
+use crate::arch::x86_64::tss::TaskStateSegment;
+
+pub static DOUBLE_FAULT_STACK: [u8; 4096] = [0u8; 4096];
+
+pub fn init_double_fault_ist(tss: &mut TaskStateSegment) {
+    let stack_top = unsafe { DOUBLE_FAULT_STACK.as_ptr().add(4096) } as u64;
+    tss.ist1 = stack_top;
+}
 
 pub fn init_idt(idt: &mut Idt) {
     let ks = 0x08;
@@ -40,7 +48,7 @@ extern "x86-interrupt" fn exc_page_fault(frame: &mut InterruptFrame) {
 }
 
 extern "x86-interrupt" fn exc_double_fault(frame: &mut InterruptFrame) -> ! {
-    crate::kprintln!("double fault at ip={:#x}", frame.ip);
+    crate::kprintln!("double fault at ip={:#x}, sp={:#x}", frame.ip, frame.sp);
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
