@@ -20,3 +20,32 @@ impl Pid {
         Pid(NEXT_PID.fetch_add(1, Ordering::SeqCst))
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThreadState {
+    Runnable,
+    Running,
+    Sleeping,
+    Zombie,
+}
+
+#[repr(C)]
+pub struct CpuContext {
+    pub rsp: u64,
+    pub r15: u64,
+    pub r14: u64,
+    pub r13: u64,
+    pub r12: u64,
+    pub rbx: u64,
+    pub rbp: u64,
+}
+
+pub struct Thread {
+    pub tid: Tid,
+    pub pid: Pid,
+    pub state: ThreadState,
+    pub kernel_stack: Option<&'static mut [u8]>,
+    pub context: CpuContext,
+    pub entry: Option<extern "C" fn()>,
+}
+
