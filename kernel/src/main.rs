@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+extern crate alloc;
+
 use core::ffi::c_void;
 
 pub const BOOT_INFO_MAGIC: u64 = 0x4d_59_4f_53_42_49_00_01;
