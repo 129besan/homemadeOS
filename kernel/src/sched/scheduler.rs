@@ -1,4 +1,4 @@
-use crate::sched::task::{Thread, ThreadState, CpuContext};
+use crate::sched::task::{Thread, ThreadState, CpuContext, Tid, Pid};
 use crate::sched::switch::context_switch;
 use alloc::collections::VecDeque;
 
@@ -55,4 +55,18 @@ impl Scheduler {
             unsafe { core::arch::asm!("hlt"); }
         }
     }
+}
+
+pub fn create_bootstrap_thread() -> &'static mut Thread {
+    let thread = alloc::boxed::Box::new(Thread {
+        tid: Tid::new(),
+        pid: Pid::new(),
+        state: ThreadState::Running,
+        kernel_stack: None,
+        context: CpuContext {
+            rsp: 0, r15: 0, r14: 0, r13: 0, r12: 0, rbx: 0, rbp: 0,
+        },
+        entry: None,
+    });
+    Box::leak(thread)
 }
