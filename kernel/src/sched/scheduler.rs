@@ -57,6 +57,13 @@ impl Scheduler {
     }
 }
 
+pub fn timer_tick() {
+    let sched = unsafe { &mut SCHEDULER };
+    if sched.current.is_some() {
+        sched.yield_current();
+    }
+}
+
 pub fn create_bootstrap_thread() -> &'static mut Thread {
     let thread = alloc::boxed::Box::new(Thread {
         tid: Tid::new(),
