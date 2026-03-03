@@ -50,6 +50,10 @@ impl Scheduler {
         }
     }
 
+    pub fn run_idle(&mut self) -> ! {
+        self.idle()
+    }
+
     pub fn idle() -> ! {
         loop {
             unsafe { core::arch::asm!("hlt"); }
