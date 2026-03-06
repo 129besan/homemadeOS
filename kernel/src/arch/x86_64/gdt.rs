@@ -46,3 +46,8 @@ impl GdtAccess {
         self.0 as u64
     }
 }
+
+pub const KERNEL_CS: u64 = 0x08;
+pub const KERNEL_DS: u64 = 0x10;
+pub const USER_CS: u64 = 0x18 | 3;
+pub const USER_DS: u64 = 0x20 | 3;
