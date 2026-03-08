@@ -1,8 +1,11 @@
 use crate::mm::addr::{PhysAddr, PhysFrame, PAGE_SIZE};
 use crate::mm::memory_map::MemoryRegion;
+use crate::sync::spinlock::SpinLock;
 use crate::BootInfo;
 
-pub fn init_from_boot_info(boot_info: &BootInfo) -> FrameAllocator {
+pub static FRAME_ALLOCATOR: SpinLock<Option<FrameAllocator>> = SpinLock::new(None);
+
+pub fn init_frame_allocator(boot_info: &BootInfo) {
     let total_memory = detect_total_memory(boot_info);
     let total_frames = (total_memory / PAGE_SIZE) as usize;
     let bitmap_size = (total_frames + 63) / 64;
@@ -13,7 +16,10 @@ pub fn init_from_boot_info(boot_info: &BootInfo) -> FrameAllocator {
     for slot in bitmap.iter_mut() {
         *slot = 0;
     }
-    FrameAllocator::new(bitmap, total_frames)
+    let mut alloc = FrameAllocator::new(bitmap, total_frames);
+    alloc.reserve_kernel(PhysAddr(boot_info.kernel_phys_start), PhysAddr(boot_info.kernel_phys_end));
+    alloc.reserve_boot_info(boot_info);
+    *FRAME_ALLOCATOR.lock() = Some(alloc);
 }
 
 fn detect_total_memory(boot_info: &BootInfo) -> u64 {

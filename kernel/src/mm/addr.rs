@@ -17,6 +17,9 @@ pub struct Page {
 pub const PAGE_SIZE: u64 = 4096;
 
 impl PhysAddr {
+    pub fn new(addr: u64) -> Self {
+        PhysAddr(addr)
+    }
     pub fn page_align_down(&self) -> Self {
         PhysAddr(self.0 & !(PAGE_SIZE - 1))
     }
@@ -26,6 +29,9 @@ impl PhysAddr {
 }
 
 impl VirtAddr {
+    pub fn new(addr: u64) -> Self {
+        VirtAddr(addr)
+    }
     pub fn page_align_down(&self) -> Self {
         VirtAddr(self.0 & !(PAGE_SIZE - 1))
     }
