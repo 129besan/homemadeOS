@@ -4,5 +4,6 @@ pub mod gdt;
 pub mod idt;
 pub mod interrupts;
 pub mod segments;
+pub mod trap;
 pub mod tss;
 pub mod user;
