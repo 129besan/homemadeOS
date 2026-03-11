@@ -33,7 +33,9 @@ mod arch;
 pub mod drivers;
 pub mod mm;
 pub mod log;
+pub mod sched;
 pub mod sync;
+pub mod proc;
 
 use mm::heap::LinkedListAllocator;
 
