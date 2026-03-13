@@ -1,0 +1,11 @@
+pub const SYS_EXIT: u64 = 0;
+pub const SYS_WRITE: u64 = 1;
+pub const SYS_READ: u64 = 2;
+pub const SYS_OPEN: u64 = 3;
+pub const SYS_CLOSE: u64 = 4;
+pub const SYS_SPAWN: u64 = 5;
+pub const SYS_WAIT: u64 = 6;
+pub const SYS_GETPID: u64 = 7;
+pub const SYS_YIELD: u64 = 8;
+pub const SYS_MMAP: u64 = 9;
+pub const SYS_MUNMAP: u64 = 10;
