@@ -29,6 +29,7 @@ pub fn sys_wait(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u
 }
 
 pub fn sys_getpid(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
+    crate::log_info!("sys_getpid called");
     1
 }
 
