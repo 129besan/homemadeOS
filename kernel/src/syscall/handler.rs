@@ -33,6 +33,7 @@ pub fn sys_getpid(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9:
 }
 
 pub fn sys_yield(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
+    crate::log_info!("sys_yield called");
     crate::sched::scheduler::timer_tick();
     0
 }
