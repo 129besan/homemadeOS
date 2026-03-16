@@ -40,3 +40,20 @@ pub unsafe fn syscall1(sysno: u64, arg1: u64) -> isize {
 pub unsafe fn syscall3(sysno: u64, arg1: u64, arg2: u64, arg3: u64) -> isize {
     syscall6(sysno, arg1, arg2, arg3, 0, 0, 0)
 }
+
+pub fn exit(code: i32) -> ! {
+    unsafe { syscall1(SYS_EXIT, code as u64); }
+    loop {}
+}
+
+pub fn write(fd: usize, buf: &[u8]) -> isize {
+    unsafe { syscall3(SYS_WRITE, fd as u64, buf.as_ptr() as u64, buf.len() as u64) }
+}
+
+pub fn getpid() -> isize {
+    unsafe { syscall0(SYS_GETPID) }
+}
+
+pub fn yield_now() {
+    unsafe { syscall0(SYS_YIELD); }
+}
