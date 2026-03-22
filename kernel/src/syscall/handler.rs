@@ -22,7 +22,16 @@ pub fn sys_write(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: 
 }
 
 pub fn sys_read(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
-    -38
+    let _fd = rdi as usize;
+    let buf_ptr = rsi;
+    let len = rdx as usize;
+    if len == 0 {
+        return 0;
+    }
+    let mut buf = alloc::vec![0u8; len];
+    crate::log_info!("sys_read: fd={} len={}", _fd, len);
+    let _ = crate::syscall::validate::copy_to_user(buf_ptr, &buf);
+    0
 }
 
 pub fn sys_open(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
