@@ -26,11 +26,21 @@ pub fn sys_read(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u
 }
 
 pub fn sys_open(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
-    -38
+    let path_ptr = rdi;
+    let _flags = rsi;
+    let max_len = 256;
+    let path = match crate::syscall::validate::copy_str_from_user(path_ptr, max_len) {
+        Ok(p) => p,
+        Err(_) => return -14,
+    };
+    crate::log_info!("sys_open: {}", path);
+    -2
 }
 
 pub fn sys_close(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
-    -38
+    let fd = rdi as usize;
+    crate::log_info!("sys_close: fd={}", fd);
+    0
 }
 
 pub fn sys_spawn(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
