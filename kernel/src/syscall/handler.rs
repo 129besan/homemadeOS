@@ -6,18 +6,19 @@ pub fn sys_exit(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u
 
 pub fn sys_write(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
     let fd = rdi as usize;
-    if fd == 1 {
-        let len = rdx as usize;
-        let mut buf = alloc::vec![0u8; len];
-        if crate::syscall::validate::copy_from_user(&mut buf, rsi, len).is_err() {
-            return -14;
+    let len = rdx as usize;
+    let mut buf = alloc::vec![0u8; len];
+    if crate::syscall::validate::copy_from_user(&mut buf, rsi, len).is_err() {
+        return -14;
+    }
+    match fd {
+        1 => {
+            if let Ok(s) = core::str::from_utf8(&buf) {
+                crate::kprint!("{}", s);
+            }
+            len as isize
         }
-        if let Ok(s) = core::str::from_utf8(&buf) {
-            crate::kprint!("{}", s);
-        }
-        len as isize
-    } else {
-        -9
+        _ => -9,
     }
 }
 
