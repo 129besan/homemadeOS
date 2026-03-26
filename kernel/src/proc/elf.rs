@@ -52,3 +52,54 @@ pub fn validate_elf(header: &ElfHeader) -> bool {
     }
     true
 }
+
+pub fn validate_program_headers(header: &ElfHeader, data: &[u8]) -> bool {
+    if header.e_phnum == 0 {
+        return false;
+    }
+    let phoff = header.e_phoff as usize;
+    let phentsize = header.e_phentsize as usize;
+    for i in 0..header.e_phnum as usize {
+        let offset = phoff + i * phentsize;
+        if offset + core::mem::size_of::<ProgramHeader>() > data.len() {
+            return false;
+        }
+        let ph = unsafe { &*(data[offset..].as_ptr() as *const ProgramHeader) };
+        if ph.p_type == PT_LOAD {
+            if ph.p_align & (ph.p_align - 1) != 0 {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+pub fn map_loadable_segments(
+    data: &[u8],
+    address_space: &mut AddressSpace,
+) -> Result<u64, ()> {
+    let header = unsafe { &*(data.as_ptr() as *const ElfHeader) };
+    let phoff = header.e_phoff as usize;
+    let phentsize = header.e_phentsize as usize;
+    let entry = header.e_entry;
+
+    for i in 0..header.e_phnum as usize {
+        let offset = phoff + i * phentsize;
+        let ph = unsafe { &*(data[offset..].as_ptr() as *const ProgramHeader) };
+        if ph.p_type != PT_LOAD {
+            continue;
+        }
+
+        let file_start = ph.p_offset as usize;
+        let file_end = file_start + ph.p_filesz as usize;
+        let file_data = &data[file_start..file_end];
+        let vaddr = ph.p_vaddr;
+
+        crate::log_info!(
+            "load segment vaddr={:#x} filesz={} memsz={} flags={}",
+            vaddr, ph.p_filesz, ph.p_memsz, ph.p_flags
+        );
+    }
+
+    Ok(entry)
+}
