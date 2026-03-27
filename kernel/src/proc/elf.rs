@@ -137,3 +137,7 @@ pub fn build_user_stack(stack_top: u64, argv: &[&str]) -> u64 {
 
     argv_start - 8
 }
+
+pub fn create_main_thread(entry: u64, stack_rsp: u64) {
+    crate::log_info!("creating main thread entry={:#x} rsp={:#x}", entry, stack_rsp);
+}
