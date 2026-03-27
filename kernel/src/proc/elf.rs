@@ -103,3 +103,37 @@ pub fn map_loadable_segments(
 
     Ok(entry)
 }
+
+pub fn build_user_stack(stack_top: u64, argv: &[&str]) -> u64 {
+    let mut strings = alloc::vec![];
+    for arg in argv {
+        strings.extend_from_slice(arg.as_bytes());
+        strings.push(0);
+    }
+
+    let stack_ptr = (stack_top - strings.len() as u64) & !0xf;
+    unsafe {
+        core::ptr::copy_nonoverlapping(strings.as_ptr(), stack_ptr as *mut u8, strings.len());
+    }
+
+    let argv_ptrs: alloc::vec::Vec<u64> = argv
+        .iter()
+        .scan(stack_ptr, |offset, arg| {
+            let ptr = *offset;
+            *offset += arg.len() as u64 + 1;
+            Some(ptr)
+        })
+        .collect();
+
+    let argv_start = stack_ptr - (argv_ptrs.len() as u64 + 1) * 8;
+    for (i, &ptr) in argv_ptrs.iter().enumerate() {
+        unsafe {
+            core::ptr::write((argv_start + i as u64 * 8) as *mut u64, ptr);
+        }
+    }
+    unsafe {
+        core::ptr::write((argv_start + argv_ptrs.len() as u64 * 8) as *mut u64, 0);
+    }
+
+    argv_start - 8
+}
