@@ -66,6 +66,8 @@ pub fn sys_spawn(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: 
 }
 
 pub fn sys_wait(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
+    let _pid = rdi;
+    crate::log_info!("sys_wait called");
     -38
 }
 
