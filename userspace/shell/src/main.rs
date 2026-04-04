@@ -53,8 +53,16 @@ pub extern "C" fn _start() -> ! {
         write(1, PROMPT);
         let mut line = [0u8; 128];
         let len = read_line(&mut line);
-        if len > 0 {
-            write(1, b"\n");
+        if len == 0 {
+            continue;
+        }
+        let mut args = [&[][..]; 16];
+        let argc = split_argv(&line[..len], &mut args);
+        if argc == 0 {
+            continue;
+        }
+        if args[0] == b"exit" {
+            break;
         }
     }
 }
