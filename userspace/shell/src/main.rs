@@ -22,6 +22,31 @@ fn read_line(buf: &mut [u8]) -> usize {
     pos
 }
 
+fn split_argv(line: &[u8], argv: &mut [&[u8]]) -> usize {
+    let mut count = 0;
+    let mut start = 0;
+    let mut in_token = false;
+    for i in 0..line.len() {
+        if line[i] == b' ' || line[i] == b'\t' {
+            if in_token {
+                if count < argv.len() {
+                    argv[count] = &line[start..i];
+                }
+                count += 1;
+                in_token = false;
+            }
+        } else if !in_token {
+            start = i;
+            in_token = true;
+        }
+    }
+    if in_token && count < argv.len() {
+        argv[count] = &line[start..];
+        count += 1;
+    }
+    count
+}
+
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     loop {
