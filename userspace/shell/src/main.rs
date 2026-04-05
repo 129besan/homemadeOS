@@ -64,6 +64,13 @@ pub extern "C" fn _start() -> ! {
         if args[0] == b"exit" {
             break;
         }
+        if args[0] == b"cd" {
+            continue;
+        }
+        if args[0] == b"pwd" {
+            write(1, b"/\n");
+            continue;
+        }
         let mut path = [0u8; 64];
         path[..5].copy_from_slice(b"/bin/");
         let name_len = args[0].len().min(58);
