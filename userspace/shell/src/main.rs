@@ -64,6 +64,12 @@ pub extern "C" fn _start() -> ! {
         if args[0] == b"exit" {
             break;
         }
+        let mut path = [0u8; 64];
+        path[..5].copy_from_slice(b"/bin/");
+        let name_len = args[0].len().min(58);
+        path[5..][..name_len].copy_from_slice(&args[0][..name_len]);
+        let path_str = core::str::from_utf8(&path[..5 + name_len]).unwrap_or("/bin/hello");
+        unsafe { libc_lite::spawn(path_str); }
     }
 }
 
