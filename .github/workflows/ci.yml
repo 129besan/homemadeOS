@@ -14,3 +14,15 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y qemu-system-x86 mtools dosfstools
       - name: Run tests
         run: python3 -m pytest tests/ -v --timeout=30
+      - name: Upload serial logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: serial-logs
+          path: /tmp/serial-*.log
+      - name: Upload kernel symbols
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-symbols
+          path: target/kernel.sym
