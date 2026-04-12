@@ -42,8 +42,22 @@ use mm::heap::LinkedListAllocator;
 #[global_allocator]
 pub static ALLOCATOR: LinkedListAllocator = LinkedListAllocator::new();
 
+fn dump_regs() {
+    let rip: u64;
+    let rsp: u64;
+    let cr2: u64;
+    unsafe {
+        core::arch::asm!("lea {}, [rip]", out(reg) rip);
+        core::arch::asm!("mov {}, rsp", out(reg) rsp);
+        core::arch::asm!("mov {}, cr2", out(reg) cr2);
+    }
+    log_error!("RIP={:#x} RSP={:#x} CR2={:#x}", rip, rsp, cr2);
+}
+
 #[panic_handler]
-fn panic(_info: &core::panic::Panick_info) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    log_error!("KERNEL PANIC: {}", info);
+    dump_regs();
     loop {
         unsafe { core::arch::asm!("hlt"); }
     }
