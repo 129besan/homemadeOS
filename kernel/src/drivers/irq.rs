@@ -28,7 +28,7 @@ pub fn init_irqs(idt: &mut Idt) {
     let present = 0x8e;
     for i in 0..16 {
         idt.entries[(PIC_REMAP_OFFSET as usize) + i].set_handler(
-            irq_handler as u64, ks, present,
+            irq_handler as *const () as u64, ks, present,
         );
     }
 }

@@ -8,3 +8,6 @@ build/
 hiduke.md
 AGENTS.md
 opencode.json
+tests/boot/__pycache__/
+tests/kernel/__pycache__/
+tmp/

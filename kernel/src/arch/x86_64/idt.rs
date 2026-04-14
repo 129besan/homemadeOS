@@ -1,6 +1,5 @@
-use crate::arch::x86_64::segments;
-
 #[repr(C, packed)]
+#[derive(Clone, Copy)]
 pub struct IdtEntry {
     pub offset_low: u16,
     pub selector: u16,

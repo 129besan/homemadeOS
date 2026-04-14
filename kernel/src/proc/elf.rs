@@ -76,7 +76,7 @@ pub fn validate_program_headers(header: &ElfHeader, data: &[u8]) -> bool {
 
 pub fn map_loadable_segments(
     data: &[u8],
-    address_space: &mut AddressSpace,
+    address_space: &mut crate::mm::paging::address_space::AddressSpace,
 ) -> Result<u64, ()> {
     let header = unsafe { &*(data.as_ptr() as *const ElfHeader) };
     let phoff = header.e_phoff as usize;

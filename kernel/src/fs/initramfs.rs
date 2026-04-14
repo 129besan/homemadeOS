@@ -37,7 +37,7 @@ impl Initramfs {
         Some(Initramfs { base, size })
     }
 
-    fn header(&self) -> &InitramfsHeader {
+    pub(crate) fn header(&self) -> &InitramfsHeader {
         unsafe { &*(self.base as *const InitramfsHeader) }
     }
 

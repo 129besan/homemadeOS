@@ -1,6 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
+    #[derive(Clone, Copy)]
     pub struct PageFlags: u64 {
         const PRESENT      = 1 << 0;
         const WRITABLE     = 1 << 1;

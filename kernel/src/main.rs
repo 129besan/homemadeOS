@@ -1,9 +1,10 @@
 #![no_std]
 #![no_main]
+#![feature(abi_x86_interrupt)]
 
 extern crate alloc;
 
-use core::ffi::c_void;
+
 
 pub const BOOT_INFO_MAGIC: u64 = 0x4d_59_4f_53_42_49_00_01;
 pub const BOOT_INFO_VERSION: u32 = 1;
@@ -36,11 +37,13 @@ pub mod log;
 pub mod sched;
 pub mod sync;
 pub mod proc;
+pub mod fs;
+pub mod syscall;
 
-use mm::heap::LinkedListAllocator;
+use mm::heap::BumpAllocator;
 
 #[global_allocator]
-pub static ALLOCATOR: LinkedListAllocator = LinkedListAllocator::new();
+pub static ALLOCATOR: BumpAllocator = BumpAllocator::new();
 
 fn dump_regs() {
     let rip: u64;
@@ -81,13 +84,11 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     drivers::serial::init();
     kprintln!("kernel started");
 
-    unsafe {
-        ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);
-    }
+    ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
     log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
-    arch::boot::init();
+    arch::x86_64::boot::init();
     loop {
         unsafe { core::arch::asm!("hlt"); }
     }

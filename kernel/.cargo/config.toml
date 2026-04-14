@@ -1,5 +1,5 @@
-[target.x86_64-unknown-uefi]
-runner = "qemu-system-x86_64"
+[target.x86_64-unknown-none]
+rustflags = ["-C", "link-arg=-Tlinker.ld", "-C", "no-redzone=y"]
 
 [unstable]
 build-std = ["core", "compiler_builtins", "alloc"]

@@ -32,7 +32,7 @@ static mut BOOT_INFO: BootInfo = BootInfo {
 };
 
 #[panic_handler]
-fn panic(_info: &core::panic::Panick_info) -> ! {
+fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
@@ -84,7 +84,37 @@ pub extern "efiapi" fn efi_main(
     ];
     uefi::print(st, hello);
 
+    let kernel_data: &[u8] = include_bytes!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../target/x86_64-unknown-none/debug/kernel"
+    ));
+
+    let header = unsafe { &*(kernel_data.as_ptr() as *const Elf64Header) };
+    if !validate_elf(header) {
+        loop {}
+    }
+
+    let entry = match load_kernel(kernel_data) {
+        Some(e) => e,
+        None => loop {},
+    };
+
+    // Find kernel physical range from PT_LOAD segments
+    let phdrs = program_headers(header);
+    let mut phys_start = u64::MAX;
+    let mut phys_end = 0u64;
+    for ph in phdrs {
+        if ph.p_type == PT_LOAD {
+            let start = ph.p_vaddr;
+            let end = start + ph.p_memsz;
+            if start < phys_start { phys_start = start; }
+            if end > phys_end { phys_end = end; }
+        }
+    }
+
     let boot_info = unsafe { &mut BOOT_INFO };
+    boot_info.kernel_phys_start = phys_start;
+    boot_info.kernel_phys_end = phys_end;
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
 
@@ -95,7 +125,9 @@ pub extern "efiapi" fn efi_main(
         let _ = exit(_image_handle, 0, 0);
     }
 
-    let entry: extern "C" fn(*const BootInfo) -> ! =
-        unsafe { core::mem::transmute(boot_info.kernel_phys_start as usize) };
-    entry(&BOOT_INFO as *const BootInfo);
+    let entry_fn: extern "C" fn(*const BootInfo) -> ! =
+        unsafe { core::mem::transmute(entry as usize) };
+    unsafe {
+        entry_fn(&BOOT_INFO as *const BootInfo);
+    }
 }

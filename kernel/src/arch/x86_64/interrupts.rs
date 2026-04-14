@@ -12,11 +12,11 @@ pub fn init_idt(idt: &mut Idt) {
     let ks = 0x08;
     let present = 0x8e;
 
-    idt.entries[0x00].set_handler(exc_divide_error as u64, ks, present);
-    idt.entries[0x06].set_handler(exc_invalid_opcode as u64, ks, present);
-    idt.entries[0x0d].set_handler(exc_gpf as u64, ks, present);
-    idt.entries[0x0e].set_handler(exc_page_fault as u64, ks, present);
-    idt.entries[0x08].set_handler(exc_double_fault as u64, ks, present | 0x01);
+    idt.entries[0x00].set_handler(exc_divide_error as *const () as u64, ks, present);
+    idt.entries[0x06].set_handler(exc_invalid_opcode as *const () as u64, ks, present);
+    idt.entries[0x0d].set_handler(exc_gpf as *const () as u64, ks, present);
+    idt.entries[0x0e].set_handler(exc_page_fault as *const () as u64, ks, present);
+    idt.entries[0x08].set_handler(exc_double_fault as *const () as u64, ks, present | 0x01);
 
     idt.load();
 }
@@ -31,23 +31,25 @@ extern "x86-interrupt" fn exc_invalid_opcode(_frame: &mut InterruptFrame) {
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
-extern "x86-interrupt" fn exc_gpf(_frame: &mut InterruptFrame) {
-    crate::kprintln!("general protection fault");
+extern "x86-interrupt" fn exc_gpf(_frame: &mut InterruptFrame, error_code: u64) {
+    crate::kprintln!("general protection fault error_code={}", error_code);
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
-extern "x86-interrupt" fn exc_page_fault(frame: &mut InterruptFrame) {
+extern "x86-interrupt" fn exc_page_fault(frame: &mut InterruptFrame, error_code: u64) {
     let cr2: u64;
     unsafe { core::arch::asm!("mov {0}, cr2", out(reg) cr2) };
-    let err = PageFaultError(error_code);
+    let present = error_code & 1 != 0;
+    let write = error_code & 2 != 0;
+    let user = error_code & 4 != 0;
     crate::kprintln!(
         "page fault at {:#x}, ip={:#x}, present={}, write={}, user={}",
-        cr2, frame.ip, err.present(), err.write(), err.user(),
+        cr2, frame.ip, present, write, user,
     );
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
-extern "x86-interrupt" fn exc_double_fault(frame: &mut InterruptFrame) -> ! {
+extern "x86-interrupt" fn exc_double_fault(frame: &mut InterruptFrame, _error_code: u64) -> ! {
     crate::kprintln!("double fault at ip={:#x}, sp={:#x}", frame.ip, frame.sp);
     loop { unsafe { core::arch::asm!("hlt"); } }
 }

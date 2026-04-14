@@ -25,5 +25,5 @@ pub fn enter_user_mode(entry: u64, rsp: u64) -> ! {
             rip = in(reg) frame.rip,
         );
     }
-    loop { core::arch::asm!("hlt"); }
+    loop { unsafe { core::arch::asm!("hlt"); } }
 }

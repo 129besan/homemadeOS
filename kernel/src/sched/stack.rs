@@ -1,3 +1,5 @@
+use core::alloc::GlobalAlloc;
+
 pub const KERNEL_STACK_SIZE: usize = 4096 * 16;
 
 pub fn alloc_kernel_stack() -> Option<&'static mut [u8]> {

@@ -4,11 +4,12 @@ use crate::mm::frame_allocator::FrameAllocator;
 
 #[repr(C, align(4096))]
 pub struct PageTable {
-    entries: [PageTableEntry; 512],
+    pub entries: [PageTableEntry; 512],
 }
 
 #[repr(transparent)]
-pub struct PageTableEntry(u64);
+#[derive(Clone, Copy)]
+pub struct PageTableEntry(pub(crate) u64);
 
 impl PageTableEntry {
     pub fn new() -> Self {
@@ -32,37 +33,25 @@ impl PageTableEntry {
     }
 }
 
-pub struct PageTableWalker<'a> {
-    level: usize,
-    tables: [&'a PageTable; 4],
-}
-
-impl<'a> PageTableWalker<'a> {
-    pub fn new(pml4: &'a PageTable) -> Self {
-        PageTableWalker {
-            level: 0,
-            tables: [pml4, pml4, pml4, pml4],
+pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> {
+    let indices = virt_indices(virt);
+    let mut table = pml4;
+    for &level in &indices[..3] {
+        let entry = &table.entries[level];
+        if !entry.is_present() {
+            return Err(());
         }
+        let next = entry.addr();
+        table = unsafe { &mut *(next.0 as *mut PageTable) };
     }
-
-    pub fn walk(&mut self, virt: VirtAddr) -> Result<&mut PageTableEntry, ()> {
-        let indices = virt_indices(virt);
-        for level in 0..4 {
-            let table = &self.tables[level];
-            let entry = unsafe {
-                &mut *(&table.entries[indices[level]] as *const PageTableEntry as *mut PageTableEntry)
-            };
-            if level == 3 {
-                return Ok(entry);
-            }
-            if !entry.is_present() {
-                return Err(());
-            }
-            let next_table = unsafe { &mut *(entry.addr().0 as *mut PageTable) };
-            self.tables[level + 1] = next_table;
-        }
-        Err(())
+    let entry = &mut table.entries[indices[3]];
+    if !entry.is_present() {
+        return Err(());
     }
+    let phys = entry.addr();
+    entry.0 = 0;
+    unsafe { core::arch::asm!("invlpg ({0})", in(reg) virt.0, options(nostack, preserves_flags)) };
+    Ok(phys)
 }
 
 pub fn map_page(
@@ -92,18 +81,6 @@ pub fn map_page(
     let entry = &mut table.entries[indices[3] as usize];
     entry.set_addr(phys, flags | PageFlags::PRESENT);
     Ok(())
-}
-
-pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> {
-    let mut walker = PageTableWalker::new(pml4);
-    let entry = walker.walk(virt)?;
-    if !entry.is_present() {
-        return Err(());
-    }
-    let phys = entry.addr();
-    entry.0 = 0;
-    unsafe { core::arch::asm!("invlpg ({0})", in(reg) virt.0, options(nostack, preserves_flags)) };
-    Ok(phys)
 }
 
 pub fn translate(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {

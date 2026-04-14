@@ -1,4 +1,4 @@
-use crate::mm::addr::{VirtAddr, PhysAddr, PhysFrame, PAGE_SIZE};
+use crate::mm::addr::{VirtAddr, PhysAddr, PAGE_SIZE};
 use crate::mm::paging::flags::PageFlags;
 use crate::mm::paging::page_table::{PageTable, map_page};
 use crate::mm::frame_allocator::FRAME_ALLOCATOR;
@@ -20,12 +20,12 @@ impl AddressSpace {
         let mut alloc_guard = FRAME_ALLOCATOR.lock();
         let allocator = alloc_guard.as_mut().expect("frame allocator not initialized");
         let frame = allocator.alloc().expect("no frame for user PML4");
-        let pml4 = frame.as_mut_ptr::<PageTable>();
+        let pml4 = frame.start_addr().0 as *mut PageTable;
 
         let active_pml4 = active_pml4();
         unsafe {
             for i in 256..512 {
-                (*pml4)[i] = (*active_pml4)[i];
+                (*pml4).entries[i] = (*active_pml4).entries[i];
             }
         }
 
@@ -41,7 +41,8 @@ impl AddressSpace {
             let frame = allocator.alloc().expect("out of memory for user stack");
             let virt = VirtAddr(stack_base + i * PAGE_SIZE);
             unsafe {
-                map_page(self.pml4, virt, frame.start_addr(), PageFlags::USER | PageFlags::WRITABLE | PageFlags::PRESENT, allocator).unwrap();
+                let pml4 = &mut *self.pml4;
+                map_page(pml4, virt, frame.start_addr(), PageFlags::USER | PageFlags::WRITABLE | PageFlags::PRESENT, allocator).unwrap();
             }
         }
         VirtAddr(USER_STACK_TOP)

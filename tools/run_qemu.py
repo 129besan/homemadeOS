@@ -4,24 +4,37 @@ import sys
 import os
 import argparse
 
+def run_qemu(timeout: int = 30):
+    img = os.path.join(os.path.dirname(__file__), "..", "build", "uefi.img")
 
-def build_image():
-    subprocess.run(
-        ["python3", "tools/build_image.py"],
-        check=True,
-    )
+    if not os.path.exists(img):
+        print("Image not found, building first...")
+        subprocess.run([sys.executable, "tools/build_image.py"], check=True)
 
+    # Find OVMF firmware
+    ovmf = None
+    for candidate in [
+        "/usr/share/OVMF/OVMF_CODE.fd",
+        "/usr/share/OVMF/OVMF_CODE_4M.fd",
+        "/usr/share/edk2/x64/OVMF_CODE.fd",
+    ]:
+        if os.path.exists(candidate):
+            ovmf = candidate
+            break
+    if ovmf is None:
+        print("OVMF firmware not found, install ovmf package")
+        sys.exit(1)
 
-def run_qemu(image: str, timeout: int = 30):
     qemu = [
         "qemu-system-x86_64",
         "-m", "256M",
         "-cpu", "max",
-        "-drive", f"if=pflash,format=raw,file={image}",
-        "-serial", "stdio",
-        "-display", "none",
+        "-drive", f"if=pflash,format=raw,readonly=on,file={ovmf}",
+        "-drive", f"file={img},format=raw,if=ide",
+        "-nographic",
         "-no-reboot",
     ]
+
     if timeout:
         qemu += ["-no-shutdown"]
         try:
@@ -31,18 +44,8 @@ def run_qemu(image: str, timeout: int = 30):
     else:
         subprocess.run(qemu)
 
-
-def main():
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=int, default=30)
     args = parser.parse_args()
-
-    image = os.path.join(os.path.dirname(__file__), "..", "build", "uefi.img")
-    if not os.path.exists(image):
-        build_image()
-
-    run_qemu(image, args.timeout)
-
-
-if __name__ == "__main__":
-    main()
+    run_qemu(args.timeout)

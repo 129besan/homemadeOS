@@ -1,5 +1,6 @@
 use crate::sched::task::{Thread, ThreadState, CpuContext, Tid, Pid};
 use crate::sched::switch::context_switch;
+use alloc::boxed::Box;
 use alloc::collections::VecDeque;
 
 pub static mut SCHEDULER: Scheduler = Scheduler::new();
@@ -51,7 +52,7 @@ impl Scheduler {
     }
 
     pub fn run_idle(&mut self) -> ! {
-        self.idle()
+        Scheduler::idle()
     }
 
     pub fn idle() -> ! {
