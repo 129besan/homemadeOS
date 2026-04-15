@@ -68,20 +68,22 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
 fn verify_boot_info(boot_info: &BootInfo) {
     if boot_info.magic != BOOT_INFO_MAGIC {
+        log_error!("bad boot info magic: {:#x}", boot_info.magic);
         loop { unsafe { core::arch::asm!("hlt"); } }
     }
     if boot_info.version != BOOT_INFO_VERSION {
+        log_error!("bad boot info version: {}", boot_info.version);
         loop { unsafe { core::arch::asm!("hlt"); } }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
+    drivers::serial::init();
     verify_boot_info(boot_info);
     unsafe {
         BOOT_INFO = Some(boot_info);
     }
-    drivers::serial::init();
     kprintln!("kernel started");
 
     ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);

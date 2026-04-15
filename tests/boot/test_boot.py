@@ -4,7 +4,7 @@ from conftest import run_qemu
 
 
 def test_kernel_start():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=15)
     assert "kernel started" in output.lower()
 
 

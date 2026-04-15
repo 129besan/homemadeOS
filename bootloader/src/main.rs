@@ -8,9 +8,8 @@ mod memory_map;
 mod uefi;
 
 use core::ffi::c_void;
-use elf_loader::{validate_elf, program_headers, Elf64Header, PT_LOAD};
+use elf_loader::{program_header, read_header, validate_elf, PT_LOAD};
 use handoff::BootInfo;
-use memory_map::MemoryDescriptor;
 use uefi::SystemTable;
 
 static mut BOOT_INFO: BootInfo = BootInfo {
@@ -36,20 +35,15 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-fn kernel_phys_range() -> (u64, u64) {
-    (0x100000, 0x200000)
-}
-
 fn load_kernel(data: &[u8]) -> Option<u64> {
-    let header = unsafe { &*(data.as_ptr() as *const Elf64Header) };
-    if !validate_elf(header) {
+    let header = read_header(data)?;
+    if !validate_elf(&header) {
         return None;
     }
-    let phdrs = program_headers(header);
-    for ph in phdrs {
+    for i in 0..header.e_phnum as usize {
+        let ph = program_header(data, &header, i)?;
         if ph.p_type == PT_LOAD {
             let start = ph.p_vaddr;
-            let end = start + ph.p_memsz;
             let file_start = ph.p_offset as usize;
             let file_end = file_start + ph.p_filesz as usize;
             if file_end > data.len() {
@@ -89,8 +83,11 @@ pub extern "efiapi" fn efi_main(
         "/../target/x86_64-unknown-none/debug/kernel"
     ));
 
-    let header = unsafe { &*(kernel_data.as_ptr() as *const Elf64Header) };
-    if !validate_elf(header) {
+    let header = match read_header(kernel_data) {
+        Some(header) => header,
+        None => loop {},
+    };
+    if !validate_elf(&header) {
         loop {}
     }
 
@@ -100,10 +97,13 @@ pub extern "efiapi" fn efi_main(
     };
 
     // Find kernel physical range from PT_LOAD segments
-    let phdrs = program_headers(header);
     let mut phys_start = u64::MAX;
     let mut phys_end = 0u64;
-    for ph in phdrs {
+    for i in 0..header.e_phnum as usize {
+        let ph = match program_header(kernel_data, &header, i) {
+            Some(ph) => ph,
+            None => loop {},
+        };
         if ph.p_type == PT_LOAD {
             let start = ph.p_vaddr;
             let end = start + ph.p_memsz;
@@ -118,14 +118,7 @@ pub extern "efiapi" fn efi_main(
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
 
-    let bt = st.boot_services;
-    if !bt.is_null() {
-        let exit: extern "efiapi" fn(*mut c_void, usize, usize) -> usize =
-            unsafe { core::mem::transmute((*bt).exit_boot_services) };
-        let _ = exit(_image_handle, 0, 0);
-    }
-
-    let entry_fn: extern "C" fn(*const BootInfo) -> ! =
+    let entry_fn: extern "sysv64" fn(*const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     unsafe {
         entry_fn(&BOOT_INFO as *const BootInfo);
