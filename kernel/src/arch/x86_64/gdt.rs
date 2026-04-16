@@ -10,7 +10,7 @@ pub struct Gdt {
 }
 
 impl Gdt {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Gdt {
             null: 0,
             kernel_code: Gdt::make_desc(0, 0, GdtAccess::KERNEL_CODE),
@@ -22,13 +22,17 @@ impl Gdt {
         }
     }
 
-    fn make_desc(base: u32, limit: u32, access: GdtAccess) -> u64 {
+    const fn make_desc(base: u32, limit: u32, access: GdtAccess) -> u64 {
         let mut desc: u64 = 0;
         desc |= (limit as u64 & 0xffff) << 0;
         desc |= (base as u64 & 0xffffff) << 16;
-        desc |= (access.bits() as u64) << 40;
+        desc |= (access.0 as u64) << 40;
         desc |= ((limit >> 16) as u64 & 0xf) << 48;
-        desc |= (1u64 << 55);
+        let access_bits = access.0 as u64;
+        if access_bits == 0x9a || access_bits == 0xfa {
+            desc |= 1u64 << 53;
+        }
+        desc |= 1u64 << 55;
         desc |= ((base >> 24) as u64 & 0xff) << 56;
         desc
     }
@@ -42,7 +46,7 @@ impl GdtAccess {
     pub const USER_CODE: GdtAccess = GdtAccess(0xfa);
     pub const USER_DATA: GdtAccess = GdtAccess(0xf2);
 
-    pub fn bits(&self) -> u64 {
+    pub const fn bits(&self) -> u64 {
         self.0 as u64
     }
 }

@@ -8,9 +8,10 @@ pub fn init_double_fault_ist(tss: &mut TaskStateSegment) {
     tss.ist1 = stack_top;
 }
 
-pub fn init_idt(idt: &mut Idt) {
+pub unsafe fn init_idt(idt: *mut Idt) {
     let ks = 0x08;
     let present = 0x8e;
+    let idt = &mut *idt;
 
     idt.entries[0x00].set_handler(exc_divide_error as *const () as u64, ks, present);
     idt.entries[0x06].set_handler(exc_invalid_opcode as *const () as u64, ks, present);
@@ -18,7 +19,15 @@ pub fn init_idt(idt: &mut Idt) {
     idt.entries[0x0e].set_handler(exc_page_fault as *const () as u64, ks, present);
     idt.entries[0x08].set_handler(exc_double_fault as *const () as u64, ks, present | 0x01);
 
+    idt.entries[0x20].set_handler(irq_timer as *const () as u64, ks, present);
+
     idt.load();
+}
+
+extern "x86-interrupt" fn irq_timer(_frame: &mut InterruptFrame) {
+    crate::drivers::pit::TICK_COUNT.fetch_add(1, core::sync::atomic::Ordering::SeqCst);
+    crate::drivers::serial::write_string("tick\n");
+    crate::drivers::pic::end_of_interrupt(0);
 }
 
 extern "x86-interrupt" fn exc_divide_error(_frame: &mut InterruptFrame) {
