@@ -38,5 +38,8 @@ pub unsafe fn init() {
     crate::drivers::serial::write_string("before int\n");
     core::arch::asm!("int 0x20", options(nomem, nostack));
     crate::drivers::serial::write_string("after int\n");
+
+    core::arch::asm!("int3", options(nomem, nostack));
+
     core::arch::asm!("sti", options(nomem, nostack));
 }

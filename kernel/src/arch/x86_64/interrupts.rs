@@ -14,6 +14,7 @@ pub unsafe fn init_idt(idt: *mut Idt) {
     let idt = &mut *idt;
 
     idt.entries[0x00].set_handler(exc_divide_error as *const () as u64, ks, present);
+    idt.entries[0x03].set_handler(exc_breakpoint as *const () as u64, ks, present);
     idt.entries[0x06].set_handler(exc_invalid_opcode as *const () as u64, ks, present);
     idt.entries[0x0d].set_handler(exc_gpf as *const () as u64, ks, present);
     idt.entries[0x0e].set_handler(exc_page_fault as *const () as u64, ks, present);
@@ -33,6 +34,10 @@ extern "x86-interrupt" fn irq_timer(_frame: &mut InterruptFrame) {
 extern "x86-interrupt" fn exc_divide_error(_frame: &mut InterruptFrame) {
     crate::kprintln!("divide error");
     loop { unsafe { core::arch::asm!("hlt"); } }
+}
+
+extern "x86-interrupt" fn exc_breakpoint(_frame: &mut InterruptFrame) {
+    crate::kprintln!("breakpoint");
 }
 
 extern "x86-interrupt" fn exc_invalid_opcode(_frame: &mut InterruptFrame) {
