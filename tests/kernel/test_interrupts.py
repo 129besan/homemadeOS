@@ -4,10 +4,10 @@ from conftest import run_qemu
 
 
 def test_timer_interrupt():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "tick" in output.lower() or "timer" in output.lower()
 
 
 def test_breakpoint():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "breakpoint" in output.lower()

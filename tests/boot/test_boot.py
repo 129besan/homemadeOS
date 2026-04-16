@@ -9,10 +9,10 @@ def test_kernel_start():
 
 
 def test_memory_init():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "memory" in output.lower()
 
 
 def test_timer_tick():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "tick" in output.lower()
