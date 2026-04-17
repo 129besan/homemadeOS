@@ -30,6 +30,13 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     rsdp_addr: 0,
 };
 
+static mut MEMORY_MAP_BUFFER: [u8; 65536] = [0; 65536];
+static mut MEMORY_REGIONS: [handoff::MemoryRegion; 256] = [handoff::MemoryRegion {
+    start: 0,
+    len: 0,
+    region_type: 0,
+}; 256];
+
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
@@ -118,9 +125,74 @@ pub extern "efiapi" fn efi_main(
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
 
+    let bs = unsafe { &*st.boot_services };
+    let get_memory_map: uefi::GetMemoryMapFn = unsafe { core::mem::transmute(bs.get_memory_map) };
+    let exit_boot_services: uefi::ExitBootServicesFn =
+        unsafe { core::mem::transmute(bs.exit_boot_services) };
+
+    let mut memory_map_size = core::mem::size_of::<[u8; 65536]>();
+    let mut map_key: usize = 0;
+    let mut descriptor_size: usize = 0;
+    let mut descriptor_version: u32 = 0;
+
+    let status = get_memory_map(
+        &mut memory_map_size,
+        unsafe { MEMORY_MAP_BUFFER.as_mut_ptr() },
+        &mut map_key,
+        &mut descriptor_size,
+        &mut descriptor_version,
+    );
+    if status != 0 {
+        loop {}
+    }
+
+    let num_entries = memory_map_size / descriptor_size;
+    let region_count = convert_memory_map(
+        unsafe { MEMORY_MAP_BUFFER.as_ptr() },
+        num_entries,
+        descriptor_size,
+        unsafe { &mut MEMORY_REGIONS },
+    );
+
+    let status = exit_boot_services(_image_handle, map_key);
+    if status != 0 {
+        loop {}
+    }
+
+    boot_info.memory_map_ptr = unsafe { MEMORY_REGIONS.as_ptr() as u64 };
+    boot_info.memory_map_len = region_count as u64;
+
     let entry_fn: extern "sysv64" fn(*const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     unsafe {
         entry_fn(&BOOT_INFO as *const BootInfo);
     }
+}
+
+fn convert_memory_map(
+    efi_map: *const u8,
+    efi_entries: usize,
+    efi_desc_size: usize,
+    out: &mut [handoff::MemoryRegion],
+) -> usize {
+    let mut count = 0;
+    for i in 0..efi_entries {
+        let desc = unsafe { efi_map.add(i * efi_desc_size) as *const memory_map::MemoryDescriptor };
+        let ty = unsafe { (*desc).descriptor_type };
+        let region_type = match ty {
+            7 => 1,     // EfiConventionalMemory -> Usable
+            4 | 5 => 1, // EfiBootServicesCode/Data -> Usable after ExitBootServices
+            _ => 2,     // Reserved
+        };
+        let pages = unsafe { (*desc).number_of_pages };
+        if pages > 0 && count < out.len() {
+            out[count] = handoff::MemoryRegion {
+                start: unsafe { (*desc).physical_start },
+                len: pages * 4096,
+                region_type,
+            };
+            count += 1;
+        }
+    }
+    count
 }

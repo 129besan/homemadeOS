@@ -91,6 +91,18 @@ pub struct SystemTable {
     pub configuration_table: *mut c_void,
 }
 
+pub type Status = usize;
+
+pub type GetMemoryMapFn = extern "efiapi" fn(
+    memory_map_size: *mut usize,
+    memory_map: *mut u8,
+    map_key: *mut usize,
+    descriptor_size: *mut usize,
+    descriptor_version: *mut u32,
+) -> Status;
+
+pub type ExitBootServicesFn = extern "efiapi" fn(image_handle: Handle, map_key: usize) -> Status;
+
 pub fn print(system_table: &SystemTable, msg: &[u16]) {
     if let Some(con_out) = unsafe { system_table.con_out.as_mut() } {
         let func: extern "efiapi" fn(*mut SimpleTextOutput, *mut u16) -> usize =
