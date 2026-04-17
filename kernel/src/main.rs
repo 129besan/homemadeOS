@@ -90,6 +90,8 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
     log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
+    mm::frame_allocator::init_frame_allocator(boot_info);
+    log_info!("frame allocator initialized");
     unsafe {
         arch::x86_64::boot::init();
     }
