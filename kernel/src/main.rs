@@ -93,6 +93,16 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     mm::frame_allocator::init_frame_allocator(boot_info);
     log_info!("frame allocator initialized");
     unsafe {
+        let cr0: u64;
+        core::arch::asm!("mov {}, cr0", out(reg) cr0);
+        let saved_cr0 = cr0;
+        let cr0_no_wp = cr0 & !(1 << 16);
+        core::arch::asm!("mov cr0, {}", in(reg) cr0_no_wp);
+        mm::paging::init_heap_paging();
+        core::arch::asm!("mov cr0, {}", in(reg) saved_cr0);
+    }
+    log_info!("paging initialized");
+    unsafe {
         arch::x86_64::boot::init();
     }
     loop {
