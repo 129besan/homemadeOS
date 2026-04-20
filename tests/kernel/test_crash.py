@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_user_crash():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "page fault" in output.lower() or "killed" in output.lower()

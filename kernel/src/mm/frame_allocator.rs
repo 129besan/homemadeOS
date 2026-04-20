@@ -98,6 +98,7 @@ pub struct FrameAllocator {
     bitmap: &'static mut [u64],
     total_frames: usize,
     used_frames: usize,
+    next_free: usize,
 }
 
 impl FrameAllocator {
@@ -106,6 +107,7 @@ impl FrameAllocator {
             bitmap,
             total_frames,
             used_frames: 0,
+            next_free: 0,
         }
     }
 
@@ -114,7 +116,7 @@ impl FrameAllocator {
     }
 
     pub fn alloc(&mut self) -> Option<PhysFrame> {
-        for i in 0..self.total_frames {
+        for i in self.next_free..self.total_frames {
             let idx = i / 64;
             let bit = i % 64;
             if idx >= self.bitmap.len() {
@@ -123,9 +125,24 @@ impl FrameAllocator {
             if (self.bitmap[idx] & (1 << bit)) == 0 {
                 self.bitmap[idx] |= 1 << bit;
                 self.used_frames += 1;
+                self.next_free = i + 1;
                 return Some(PhysFrame { number: i as u64 });
             }
         }
+        for i in 0..self.next_free {
+            let idx = i / 64;
+            let bit = i % 64;
+            if idx >= self.bitmap.len() {
+                break;
+            }
+            if (self.bitmap[idx] & (1 << bit)) == 0 {
+                self.bitmap[idx] |= 1 << bit;
+                self.used_frames += 1;
+                self.next_free = i + 1;
+                return Some(PhysFrame { number: i as u64 });
+            }
+        }
+        self.next_free = 0;
         None
     }
 

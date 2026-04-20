@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_two_threads():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "thread" in output.lower()

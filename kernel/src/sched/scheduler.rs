@@ -36,17 +36,25 @@ impl Scheduler {
         Some(unsafe { &mut *ptr })
     }
 
+    pub fn set_current(&mut self, thread: &'static mut Thread) {
+        self.current = Some(thread);
+    }
+
     pub fn yield_current(&mut self) {
-        if let Some(current) = self.current.take() {
+        let old = self.current.take();
+        if let Some(current) = old {
             let thread = unsafe { &mut *current };
             thread.state = ThreadState::Runnable;
             self.run_queue.push_back(current);
         }
         if let Some(next) = self.dequeue() {
             next.state = ThreadState::Running;
-            self.current = Some(next as *mut Thread);
-            if let Some(old) = self.current() {
-                unsafe { context_switch(&mut old.context, &next.context); }
+            let next_ptr = next as *mut Thread;
+            if let Some(old_thread) = old {
+                self.current = Some(next_ptr);
+                unsafe { context_switch(&mut (*old_thread).context, &next.context); }
+            } else {
+                self.current = Some(next_ptr);
             }
         }
     }
@@ -67,6 +75,25 @@ pub fn timer_tick() {
     if sched.current.is_some() {
         sched.yield_current();
     }
+}
+
+pub fn create_kernel_thread(entry: extern "C" fn()) -> &'static mut Thread {
+    let stack = crate::sched::stack::alloc_kernel_stack().expect("out of stack");
+    let stack_top = unsafe { stack.as_mut_ptr().add(stack.len()) } as u64;
+    let rsp = stack_top - 8;
+    unsafe { *(rsp as *mut u64) = entry as u64; }
+    let thread = alloc::boxed::Box::new(Thread {
+        tid: Tid::new(),
+        pid: Pid::new(),
+        state: ThreadState::Runnable,
+        kernel_stack: Some(stack),
+        context: CpuContext {
+            rsp,
+            r15: 0, r14: 0, r13: 0, r12: 0, rbx: 0, rbp: 0,
+        },
+        entry: Some(entry),
+    });
+    Box::leak(thread)
 }
 
 pub fn create_bootstrap_thread() -> &'static mut Thread {

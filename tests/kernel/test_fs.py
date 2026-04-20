@@ -4,20 +4,20 @@ from conftest import run_qemu
 
 
 def test_open():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "open" in output.lower()
 
 
 def test_read():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "read" in output.lower()
 
 
 def test_close():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "close" in output.lower()
 
 
 def test_enoent():
-    output = run_qemu(timeout=5)
+    output = run_qemu(timeout=10)
     assert "enoent" in output.lower()

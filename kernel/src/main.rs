@@ -105,6 +105,27 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     unsafe {
         arch::x86_64::boot::init();
     }
+
+    unsafe {
+        let sched = &mut crate::sched::scheduler::SCHEDULER;
+        let bootstrap = crate::sched::scheduler::create_bootstrap_thread();
+        sched.set_current(bootstrap);
+        let t2 = crate::sched::scheduler::create_kernel_thread(thread2_entry);
+        sched.enqueue(t2);
+        sched.yield_current();
+    }
+
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
+}
+
+extern "C" fn thread2_entry() {
+    crate::kprintln!("thread");
+    unsafe {
+        let sched = &mut crate::sched::scheduler::SCHEDULER;
+        sched.yield_current();
+    }
     loop {
         unsafe { core::arch::asm!("hlt"); }
     }
