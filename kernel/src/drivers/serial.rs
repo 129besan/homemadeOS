@@ -31,6 +31,7 @@ pub fn write_byte(byte: u8) {
     }
 }
 
+#[inline(never)]
 pub fn write_string(s: &str) {
     for &b in s.as_bytes() {
         write_byte(b);
@@ -42,7 +43,7 @@ unsafe fn outb(port: u16, value: u8) {
         "out dx, al",
         in("dx") port,
         in("al") value,
-        options(nomem, nostack, preserves_flags)
+        options(nostack, preserves_flags)
     );
 }
 
@@ -52,7 +53,7 @@ unsafe fn inb(port: u16) -> u8 {
         "in al, dx",
         in("dx") port,
         out("al") value,
-        options(nomem, nostack, preserves_flags)
+        options(nostack, preserves_flags)
     );
     value
 }
