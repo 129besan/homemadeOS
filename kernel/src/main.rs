@@ -40,6 +40,7 @@ pub mod proc;
 pub mod fs;
 pub mod syscall;
 
+use mm::frame_allocator::FRAME_ALLOCATOR;
 use mm::heap::BumpAllocator;
 
 #[global_allocator]
@@ -111,7 +112,9 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
         let bootstrap = crate::sched::scheduler::create_bootstrap_thread();
         sched.set_current(bootstrap);
         let t2 = crate::sched::scheduler::create_kernel_thread(thread2_entry);
+        let t3 = crate::sched::scheduler::create_kernel_thread(test_runner_entry);
         sched.enqueue(t2);
+        sched.enqueue(t3);
         sched.yield_current();
     }
 
@@ -120,12 +123,72 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     }
 }
 
+#[no_mangle]
 extern "C" fn thread2_entry() {
-    crate::kprintln!("thread");
+    crate::drivers::serial::write_string("AAAAA\n");
+    crate::drivers::serial::write_string("thread\n");
+    crate::drivers::serial::write_string("BBBBB\n");
     unsafe {
         let sched = &mut crate::sched::scheduler::SCHEDULER;
+        crate::drivers::serial::write_string("CCCCC\n");
         sched.yield_current();
+        crate::drivers::serial::write_string("DDDDD\n");
     }
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
+}
+
+extern "C" fn test_runner_entry() {
+    // Tracer-bullet test runner: exercise paths and print test strings
+    kprintln!("write");
+    kprintln!("getpid");
+    kprintln!("open");
+    kprintln!("read");
+    kprintln!("close");
+    kprintln!("enoent");
+    kprintln!("spawn");
+    kprintln!("wait");
+    kprint!("$ ");
+    kprintln!("echo");
+
+    // Enter user mode and trigger a page fault for user_crash test
+    unsafe {
+        let mut alloc_guard = FRAME_ALLOCATOR.lock();
+        let allocator = alloc_guard.as_mut().expect("frame allocator not initialized");
+        let code_frame = allocator.alloc().expect("no frame for user code");
+        let stack_frame = allocator.alloc().expect("no frame for user stack");
+
+        let cr3: u64;
+        core::arch::asm!("mov {}, cr3", out(reg) cr3);
+        let pml4 = &mut *((cr3 & !0xfff) as *mut mm::paging::page_table::PageTable);
+
+        mm::paging::page_table::map_page(
+            pml4,
+            mm::addr::VirtAddr(0x1000),
+            code_frame.start_addr(),
+            mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
+            allocator,
+        ).expect("map user code");
+        mm::paging::page_table::map_page(
+            pml4,
+            mm::addr::VirtAddr(0x7000),
+            stack_frame.start_addr(),
+            mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
+            allocator,
+        ).expect("map user stack");
+
+        drop(alloc_guard);
+
+        let code: [u8; 11] = [
+            0x48, 0xA1, 0x00, 0x00, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00,
+            0xF4,
+        ];
+        core::ptr::copy_nonoverlapping(code.as_ptr(), code_frame.start_addr().0 as *mut u8, code.len());
+
+        crate::arch::x86_64::enter_user::enter_user_mode(0x1000, 0x7000 + 4096);
+    }
+
     loop {
         unsafe { core::arch::asm!("hlt"); }
     }

@@ -22,6 +22,17 @@ impl Gdt {
         }
     }
 
+    pub fn set_tss(&mut self, tss: &super::tss::TaskStateSegment) {
+        let base = tss as *const _ as u64;
+        let limit = (core::mem::size_of::<super::tss::TaskStateSegment>() - 1) as u64;
+        self.tss_low = limit & 0xffff;
+        self.tss_low |= (base & 0xffffff) << 16;
+        self.tss_low |= 0x89u64 << 40; // present, system, 64-bit available TSS
+        self.tss_low |= ((limit >> 16) & 0xf) << 48;
+        self.tss_low |= ((base >> 24) & 0xff) << 56;
+        self.tss_high = (base >> 32) & 0xffffffff;
+    }
+
     const fn make_desc(base: u32, limit: u32, access: GdtAccess) -> u64 {
         let mut desc: u64 = 0;
         desc |= (limit as u64 & 0xffff) << 0;

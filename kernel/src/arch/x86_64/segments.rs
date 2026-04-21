@@ -11,7 +11,7 @@ pub unsafe fn load_gdt(gdt: *mut Gdt) {
     }
 }
 
-pub fn load_tss(tss: &TaskStateSegment) {
+pub fn load_tss() {
     unsafe {
         core::arch::asm!("ltr ax", in("ax") 0x28u16, options(nostack));
     }

@@ -41,13 +41,16 @@ impl Scheduler {
     }
 
     pub fn yield_current(&mut self) {
+        crate::drivers::serial::write_string("yield start\n");
         let old = self.current.take();
         if let Some(current) = old {
             let thread = unsafe { &mut *current };
             thread.state = ThreadState::Runnable;
             self.run_queue.push_back(current);
         }
+        crate::kprintln!("yield: after push queue_len={}", self.run_queue.len());
         if let Some(next) = self.dequeue() {
+            crate::kprintln!("yield: switching to next");
             next.state = ThreadState::Running;
             let next_ptr = next as *mut Thread;
             if let Some(old_thread) = old {
@@ -56,6 +59,8 @@ impl Scheduler {
             } else {
                 self.current = Some(next_ptr);
             }
+        } else {
+            crate::kprintln!("yield: no next");
         }
     }
 
