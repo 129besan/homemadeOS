@@ -1,37 +1,36 @@
-# Scheduler
+# スケジューラ
 
-## Design
+## 設計
 
-Round-robin preemptive scheduler for kernel threads.
+カーネルスレッド向けのプリエンプティブ・ラウンドロビンスケジューラ。
 
-## Components
+## 構成要素
 
-- **Thread**: kernel stack, context, state, TID/PID
-- **CpuContext**: callee-saved registers for context switch
-- **Scheduler**: run queue (VecDeque), current thread tracking
-- **context_switch**: assembly function that saves/restores registers
+- **Thread**: カーネルスタック、コンテキスト、状態、TID/PID
+- **CpuContext**: コンテキストスイッチ用の callee-saved レジスタ
+- **Scheduler**: 実行キュー（VecDeque）と現在のスレッドの追跡
+- **context_switch**: レジスタを保存・復元するアセンブリ関数
 
-## States
+## 状態
 
-- `Runnable`: ready to run, in run queue
-- `Running`: currently executing
-- `Sleeping`: blocked, not in run queue
-- `Zombie`: exited, waiting for cleanup
+- `Runnable`: 実行可能で、実行キューに入っている
+- `Running`: 現在実行中
+- `Sleeping`: ブロック中で、実行キューに入っていない
+- `Zombie`: 終了済みで、後始末待ち
 
-## Context Switch
+## コンテキストスイッチ
 
-The context switch saves/restores:
+コンテキストスイッチでは次を保存・復元する。
 - rsp, r15, r14, r13, r12, rbx, rbp
 
-CS, SS, RIP, RFLAGS are managed by the regular call/ret mechanism
-for kernel threads. User threads additionally need an iret frame.
+カーネルスレッドの CS、SS、RIP、RFLAGS は通常の call/ret 機構で管理する。
+ユーザースレッドには追加で iret フレームが必要になる。
 
-## Preemption
+## プリエンプション
 
-The PIT timer generates an interrupt at ~100 Hz. The timer handler
-calls `scheduler::timer_tick()` which yields the current thread.
+PIT タイマーは約 100 Hz で割り込みを発生させる。タイマーハンドラは
+`scheduler::timer_tick()` を呼び、現在のスレッドから実行権を譲る。
 
-## Idle Thread
+## アイドルスレッド
 
-When the run queue is empty, the idle thread runs. It executes `hlt`
-to save power until the next interrupt.
+実行キューが空の場合はアイドルスレッドを動かす。次の割り込みまで `hlt` を実行する。

@@ -1,9 +1,9 @@
-# Boot Handoff Contract
+# ブート引き渡し契約
 
 ## BootInfo ABI
 
-The bootloader passes a `BootInfo` structure to the kernel entry point via the
-standard calling convention (rdi = BootInfo pointer on x86_64).
+ブートローダーは標準呼出規約を使って、カーネルのエントリーポイントへ
+`BootInfo` 構造体を渡す。x86_64 では `rdi` に `BootInfo` のポインタを格納する。
 
 ```rust
 pub const BOOT_INFO_MAGIC: u64 = 0x4d_59_4f_53_42_49_00_01;
@@ -28,15 +28,15 @@ pub struct BootInfo {
 }
 ```
 
-## Ownership
+## 所有権
 
-- `BootInfo` lives at a fixed physical address allocated by the bootloader.
-- The kernel must copy any data it needs before modifying page tables.
-- Memory map entries and framebuffer are valid at the recorded addresses.
+- `BootInfo` はブートローダーが確保した固定物理アドレスに置く。
+- カーネルはページテーブルを変更する前に、必要なデータをコピーする。
+- メモリマップのエントリとフレームバッファは、記録されたアドレスで有効である。
 
-## UEFI Caveats
+## UEFI の注意点
 
-- After `ExitBootServices`, UEFI runtime services are not available unless
-  the kernel manually maps the runtime region.
-- The bootloader must not rely on pool allocations after handoff.
-- Timer and interrupt state is undefined after exit.
+- `ExitBootServices` 後は、カーネルがランタイム領域を自分でマップしない限り、
+  UEFI ランタイムサービスを利用できない。
+- 引き渡し後、ブートローダーはプール割り当てに依存してはならない。
+- 終了後のタイマーと割り込みの状態は未定義である。

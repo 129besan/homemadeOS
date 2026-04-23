@@ -1,24 +1,24 @@
-# Physical Memory Manager
+# 物理メモリマネージャ
 
-## Memory Map
+## メモリマップ
 
-The bootloader provides a memory map via `BootInfo::memory_map_ptr`. Each
-entry is a `MemoryRegion` with start, length, and type.
+ブートローダーは `BootInfo::memory_map_ptr` を通してメモリマップを渡す。
+各エントリは開始位置、長さ、種別を持つ `MemoryRegion` である。
 
-## Frame Allocator
+## フレームアロケータ
 
-The kernel uses a bitmap-based frame allocator for 4KiB physical frames.
+カーネルは 4 KiB の物理フレームを管理するビットマップ方式のアロケータを使う。
 
 ```
-Bitmap: 1 bit per frame (0 = free, 1 = used)
+ビットマップ: 1 フレームにつき 1 bit（0 = 空き、1 = 使用中）
 ```
 
-### Layout
+### 配置
 
-- Bitmap is placed at `kernel_phys_end`
-- Size = total_frames / 64 u64 entries
-- All frames are initially free
-- Kernel image, BootInfo, framebuffer, and memory map frames are reserved early
+- ビットマップは `kernel_phys_end` に置く
+- サイズは `total_frames / 64` 個の `u64`
+- 初期状態では全フレームを空きとする
+- カーネルイメージ、BootInfo、フレームバッファ、メモリマップのフレームは早期に予約する
 
 ### API
 
@@ -30,9 +30,9 @@ reserve_region(start, length)
 stats() -> (total, used, free)
 ```
 
-### Invariants
+### 不変条件
 
-- Never returns a frame that is already marked used
-- Double-free is not detected (no safety net in release)
-- Reserved regions are never allocated
-- Allocator is protected by a spinlock in multi-CPU scenarios
+- 使用中と記録されたフレームは返さない
+- 二重解放は検出しない（release ビルドに安全策はない）
+- 予約領域は割り当てない
+- 複数 CPU で使う場合はスピンロックで保護する

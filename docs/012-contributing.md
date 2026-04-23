@@ -1,75 +1,77 @@
-# Contributing
+# コントリビューションガイド
 
-## Commit Style
+## コミット形式
 
 ```
 <type>(<scope>): <summary>
 ```
 
-Types: chore, docs, boot, kernel, arch, mm, paging, heap, interrupts,
+type: chore, docs, boot, kernel, arch, mm, paging, heap, interrupts,
 driver, sync, sched, proc, syscall, fs, userlib, userspace, shell,
 test, ci, tools, release
 
-One conceptual change per commit.
-No AI-generated commit messages.
+1 コミットにつき 1 つの概念を扱う。
+AI が生成したような説明的すぎるコミットメッセージは避ける。
 
-## Branch Strategy
+## ブランチ戦略
 
-- Treat `main` as the latest integration branch. It should be kept bootable,
-  but when that is uncertain, verify it before using it as a baseline.
-- Before starting a larger feature, run the current smoke tests and note whether
-  the branch starts from a known-good state.
-- Use feature branches for functional areas: `feature/<name>`.
-- Keep each feature branch focused on one area, such as paging, interrupts,
-  scheduling, syscalls, filesystem, or userspace.
-- Merge a feature branch only after tests pass and boot behavior is checked.
-- Prefer squash merge to main unless the branch has a useful hand-written commit
-  sequence that should remain visible.
+- `main` は最新の統合ブランチとして扱う。起動可能な状態を保つべきだが、不明な場合は
+  ベースラインとして使う前に検証する。
+- 大きな機能に着手する前に現在のスモークテストを実行し、既知の正常状態から始めるか記録する。
+- 機能領域ごとに `feature/<name>` ブランチを使う。
+- 各 feature ブランチは paging、interrupts、scheduling、syscalls、filesystem、
+  userspace など 1 つの領域に集中させる。
+- テスト通過と起動動作を確認してから feature ブランチを統合する。
+- 残す価値のある手書きコミット列でなければ、`main` への squash merge を優先する。
 
-## Testing
+## テスト
 
-Run build and QEMU smoke tests inside the Docker environment:
+ビルドと QEMU スモークテストは Docker 環境内で実行する。
 
 ```bash
 docker compose run --rm dev python3 -m pytest tests/ -v
 ```
 
-The Docker image installs Rust nightly, QEMU, OVMF, mtools, and pytest. Local
-host runs are useful only if the same tools are installed outside Docker.
+Docker イメージには Rust nightly、QEMU、OVMF、mtools、pytest が入っている。
+ホスト上での実行は、同じツールがホストにも入っている場合だけ有効である。
 
-1. Run the relevant test first while developing.
-2. Run the full pytest suite before merging.
-3. Ensure boot output is checked before merging.
-4. New features need smoke tests.
+普段の開発では常駐コンテナと対象テストを使い、起動コストを抑える。
 
-## TDD Workflow
+```bash
+docker compose up -d dev
+docker compose exec dev python3 -m pytest tests/kernel/test_sched.py::test_two_threads -v
+```
 
-Use a small red-green-refactor loop for new behavior.
+1. 開発中は関連するテストを先に実行する。
+2. 統合前に pytest の全テストを実行する。
+3. 統合前に起動出力を確認する。
+4. 新機能にはスモークテストを追加する。
 
-1. Pick one observable behavior.
-2. Add or update one test that describes that behavior.
-3. Run the relevant test and confirm it fails for the expected reason.
-4. Implement the smallest change that makes the test pass.
-5. Run the relevant test again.
-6. Refactor only after the test is green.
-7. Run the broader smoke suite before merging the feature branch.
+## TDD ワークフロー
 
-Tests should exercise public behavior. For this OS, good tests usually inspect
-serial output, process exit behavior, filesystem results, syscall return values,
-or user program behavior. Avoid tests that only lock in private implementation
-details.
+新しい振る舞いには、小さな red-green-refactor のループを使う。
 
-When a feature is difficult to test end-to-end at first, add a tracer-bullet
-smoke test that proves the path is reachable, then deepen coverage as the
-interface becomes clearer.
+1. 観測可能な振る舞いを 1 つ選ぶ。
+2. その振る舞いを記述するテストを 1 つ追加または更新する。
+3. 関連テストを実行し、期待した理由で失敗することを確認する。
+4. テストを通す最小の変更を実装する。
+5. 関連テストをもう一度実行する。
+6. テストが green になってからリファクタリングする。
+7. feature ブランチを統合する前に、より広いスモークテストを実行する。
 
-## Merge Checklist
+テストでは外部から観測できる振る舞いを検証する。この OS では通常、シリアル出力、
+プロセス終了動作、ファイルシステムの結果、システムコールの戻り値、
+ユーザープログラムの動作を確認する。内部実装だけを固定するテストは避ける。
 
-- Branch is based on a recently checked `main`.
-- The feature has at least one behavior-level test or a documented reason why it
-  cannot be tested yet.
-- Relevant tests pass in Docker.
-- `docker compose run --rm dev python3 -m pytest tests/ -v` passes before merge,
-  unless the failure is explicitly documented.
-- Boot regression has been checked through QEMU output.
-- Docs are updated when behavior, architecture, or workflow changes.
+最初から機能を end-to-end でテストするのが難しい場合は、その経路へ到達できることを示す
+tracer-bullet スモークテストを追加し、インターフェースが明確になるにつれて範囲を深める。
+
+## 統合チェックリスト
+
+- ブランチは直近で確認済みの `main` を基点にしている。
+- 機能には振る舞いレベルのテストが 1 つ以上ある。まだテストできない場合は理由を記録している。
+- 関連テストが Docker 内で通る。
+- 明示的に失敗を記録した場合を除き、統合前に
+  `docker compose run --rm dev python3 -m pytest tests/ -v` が通る。
+- QEMU 出力で起動リグレッションを確認している。
+- 振る舞い、アーキテクチャ、ワークフローを変更した場合は docs を更新している。

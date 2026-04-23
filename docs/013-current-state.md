@@ -1,82 +1,79 @@
-# Current State
+# 現在の状態
 
-This repo has a Docker-based OS build and QEMU test environment.
+このリポジトリには Docker ベースの OS ビルド環境と QEMU テスト環境がある。
 
-## Branching
+## ブランチ
 
-The old work was done directly on `main`. New work should use focused
-`feature/*` branches.
+以前の作業は `main` 上で直接行っていた。今後の作業では対象を絞った
+`feature/*` ブランチを使う。
 
-The old `main` was a known broken baseline. The current feature branch has a
-passing kernel-entry smoke test.
+古い `main` は既知の壊れたベースラインである。現在の feature ブランチでは
+カーネルエントリーのスモークテストが通る。
 
-## What Works
+## 動作しているもの
 
-- Docker image installs Rust nightly, QEMU, OVMF, mtools, and pytest.
-- Bootloader builds for `x86_64-unknown-uefi`.
-- Kernel builds for the custom x86_64 target.
-- Disk image generation works through `tools/build_image.py`.
-- QEMU boots through UEFI.
-- Bootloader prints `Hello from MyOS!`.
-- Bootloader loads a static kernel ELF.
-- Kernel serial output reaches `kernel started`.
+- Docker イメージに Rust nightly、QEMU、OVMF、mtools、pytest が入る。
+- ブートローダーを `x86_64-unknown-uefi` 向けにビルドできる。
+- カーネルを独自 x86_64 ターゲット向けにビルドできる。
+- `tools/build_image.py` でディスクイメージを生成できる。
+- QEMU が UEFI 経由で起動する。
+- ブートローダーが `Hello from MyOS!` を出力する。
+- ブートローダーが静的カーネル ELF をロードする。
+- カーネルのシリアル出力が `kernel started` まで到達する。
 
-## Current Passing Check
+## 現在通る確認項目
 
-The first boot smoke test now passes:
+最初のブートスモークテストは通る。
 
 ```bash
 docker compose run --rm dev python3 -m pytest tests/boot/test_boot.py::test_kernel_start -v
 ```
 
-Expected output includes:
+期待する出力には次が含まれる。
 
 ```text
 kernel started
 ```
 
-## Remaining Broken Areas
+## 残っている問題
 
-- `ExitBootServices` is not wired correctly yet.
-- BootInfo memory map fields are placeholders.
-- Framebuffer fields are placeholders.
-- Most later smoke tests still describe planned behavior, not working behavior.
+- `ExitBootServices` はまだ正しく接続できていない。
+- BootInfo のメモリマップフィールドは仮実装である。
+- フレームバッファのフィールドは仮実装である。
+- 後半のスモークテストの多くは、動作中の機能ではなく予定している振る舞いを記述している。
 
-## What Was Fixed
+## 修正済みの問題
 
-The original failure had several causes:
+元の失敗には複数の原因があった。
 
-- Workspace builds were not applying kernel linker flags.
-- The kernel ELF was being produced as PIE/DYN instead of a static executable.
-- The bootloader read embedded ELF headers through potentially unaligned typed
-  references.
-- The UEFI bootloader called the kernel with the UEFI/Win64 ABI instead of the
-  kernel's SysV ABI.
-- The serial driver used memory volatile access for I/O ports instead of x86
-  `in`/`out` instructions.
+- workspace ビルドでカーネルのリンカーフラグが適用されていなかった。
+- カーネル ELF が静的実行ファイルではなく PIE/DYN として生成されていた。
+- ブートローダーが埋め込み ELF ヘッダを、アラインされていない可能性のある型付き参照で読んでいた。
+- UEFI ブートローダーがカーネルの SysV ABI ではなく UEFI/Win64 ABI でカーネルを呼んでいた。
+- シリアルドライバが I/O ポート用の x86 `in`/`out` 命令ではなく、メモリの volatile アクセスを使っていた。
 
-## Useful Commands
+## よく使うコマンド
 
-Build and test through Docker:
+Docker でビルドとテストを実行する。
 
 ```bash
 docker compose run --rm dev python3 -m pytest tests/ -v
 ```
 
-Inspect the kernel ELF inside Docker:
+Docker 内でカーネル ELF を調査する。
 
 ```bash
 docker compose run --rm dev readelf -h target/x86_64-unknown-none/debug/kernel
 docker compose run --rm dev readelf -l target/x86_64-unknown-none/debug/kernel
 ```
 
-Rebuild the image after rebuilding kernel or bootloader:
+カーネルまたはブートローダーの再ビルド後にイメージを再生成する。
 
 ```bash
 docker compose run --rm dev python3 tools/build_image.py
 ```
 
-## Key Files
+## 主要ファイル
 
 - `bootloader/src/main.rs`
 - `bootloader/src/elf_loader.rs`

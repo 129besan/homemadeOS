@@ -1,16 +1,16 @@
-# VFS and Initramfs
+# VFS と Initramfs
 
-## VFS Architecture
+## VFS アーキテクチャ
 
-- `FileOps` trait: read, write, seek
-- `InodeOps` trait: open, lookup
-- `FileTable`: per-process file descriptor table
+- `FileOps` trait: read、write、seek
+- `InodeOps` trait: open、lookup
+- `FileTable`: プロセスごとのファイルディスクリプタ表
 
 ## Initramfs
 
-The initial filesystem is embedded in the kernel image as an initramfs archive.
+初期ファイルシステムは initramfs アーカイブとしてカーネルイメージに埋め込む。
 
-### Format
+### 形式
 
 ```
 [header] [entry table] [string table] [file data]
@@ -27,11 +27,11 @@ entry:
   data_len: u32
 ```
 
-### Mounting
+### マウント
 
-During kernel init, `mount_root(boot_info)` parses the initramfs and creates the root filesystem.
+カーネル初期化時に `mount_root(boot_info)` が initramfs を解析し、ルートファイルシステムを作る。
 
-## Device Nodes
+## デバイスノード
 
-- `/dev/console`: write-only output to serial console
-- `/dev/null`: accepts all writes
+- `/dev/console`: シリアルコンソールへの書き込み専用出力
+- `/dev/null`: すべての書き込みを受け取る

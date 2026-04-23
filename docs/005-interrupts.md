@@ -1,34 +1,34 @@
-# Interrupt Architecture
+# 割り込みアーキテクチャ
 
-## Components
+## 構成要素
 
-- **GDT**: Global Descriptor Table (kernel code/data, user code/data, TSS)
-- **TSS**: Task State Segment (IST stacks for double fault)
-- **IDT**: Interrupt Descriptor Table (256 entries)
-- **PIC**: Legacy interrupt controller (disabled; masked)
-- **PIT**: Programmable Interval Timer (periodic interrupt source)
+- **GDT**: グローバルディスクリプタテーブル（カーネルとユーザーのコード・データ、TSS）
+- **TSS**: タスクステートセグメント（ダブルフォルト用 IST スタック）
+- **IDT**: 割り込みディスクリプタテーブル（256 エントリ）
+- **PIC**: 旧式の割り込みコントローラ（無効化してマスクする）
+- **PIT**: プログラマブルインターバルタイマー（周期割り込み源）
 
-## Interrupt Vectors
+## 割り込みベクタ
 
-| Vector  | Description        |
+| ベクタ | 説明 |
 |---------|--------------------|
-| 0x00    | Divide Error       |
-| 0x06    | Invalid Opcode     |
-| 0x08    | Double Fault       |
-| 0x0d    | General Protection |
-| 0x0e    | Page Fault         |
-| 0x20    | PIT Timer          |
-| 0x21    | Keyboard           |
-| 0x80    | Syscall (future)   |
+| 0x00 | ゼロ除算 |
+| 0x06 | 不正命令 |
+| 0x08 | ダブルフォルト |
+| 0x0d | 一般保護例外 |
+| 0x0e | ページフォルト |
+| 0x20 | PIT タイマー |
+| 0x21 | キーボード |
+| 0x80 | システムコール（将来） |
 
-## Exception Handling
+## 例外処理
 
-- All exceptions print diagnostics to serial
-- Page fault prints CR2, instruction pointer
-- Double fault uses a dedicated IST stack
-- Kernel panics on fatal exceptions
+- すべての例外は診断情報をシリアルへ出力する
+- ページフォルトでは CR2 と命令ポインタを出力する
+- ダブルフォルトでは専用 IST スタックを使う
+- 致命的な例外ではカーネルを panic させる
 
-## Double Fault IST
+## ダブルフォルト用 IST
 
-The double fault handler has a dedicated stack to guard against stack overflow
-causing a triple fault. The stack is set up in the TSS IST1 entry.
+スタックオーバーフローによるトリプルフォルトを防ぐため、ダブルフォルトハンドラは
+専用スタックを使う。このスタックは TSS の IST1 エントリに設定する。

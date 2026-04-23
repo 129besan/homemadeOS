@@ -1,41 +1,40 @@
-# Heap Allocator
+# ヒープアロケータ
 
-## Phases
+## 段階
 
-The kernel heap evolves in phases:
+カーネルヒープは段階的に発展させる。
 
-1. **Bump allocator** — simple linear allocation, no free. Good for early boot.
-2. **Linked-list allocator** — free list with block headers and coalescing.
-3. **Slab allocator** (future) — fixed-size caches for common allocation sizes.
+1. **バンプアロケータ**: 単純な線形割り当て。解放はなく、起動初期に適する。
+2. **リンクリストアロケータ**: ブロックヘッダを持つ空きリスト。隣接ブロックを結合する。
+3. **スラブアロケータ**（将来）: よく使う割り当てサイズごとの固定長キャッシュ。
 
-## Virtual Range
+## 仮想アドレス範囲
 
 ```
 HEAP_START = 0xffff_9000_0000_0000
 HEAP_SIZE  = 4 MiB
 ```
 
-The heap is mapped at boot time. Additional pages are mapped on demand via
-`grow()`.
+ヒープは起動時にマップする。追加ページは `grow()` で必要に応じてマップする。
 
-## Linked-List Allocator
+## リンクリストアロケータ
 
-Each free block has a header:
+各空きブロックは次のヘッダを持つ。
 
 ```text
 +------------------+
-| size (8 bytes)   |
-| next (8 bytes)   |
+| サイズ (8 bytes) |
+| 次要素 (8 bytes) |
 +------------------+
-| free space       |
+| 空き領域         |
 +------------------+
 ```
 
-On `alloc`: traverse free list, split block if remainder > 16 bytes.
-On `dealloc`: insert into free list, coalesce with adjacent free blocks.
+`alloc` では空きリストを走査し、残りが 16 bytes より大きければブロックを分割する。
+`dealloc` では空きリストへ挿入し、隣接する空きブロックと結合する。
 
-## Safety
+## 安全性
 
-- The allocator is protected by atomic operations.
-- Double-free is not detected.
-- The global allocator is wired via `#[global_allocator]`.
+- アロケータはアトミック操作で保護する。
+- 二重解放は検出しない。
+- `#[global_allocator]` でグローバルアロケータとして接続する。

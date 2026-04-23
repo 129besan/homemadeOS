@@ -1,41 +1,41 @@
-# Architecture Decision Records
+# アーキテクチャ決定記録
 
-## ADR-001: UEFI Boot
+## ADR-001: UEFI ブート
 
-**Status**: Accepted
+**状態**: 採用
 
-**Context**: Need a boot method for x86_64.
-BIOS requires real mode setup, disk I/O via int 13h, and A20 gate.
+**背景**: x86_64 向けの起動方式が必要である。
+BIOS ではリアルモードのセットアップ、int 13h によるディスク I/O、A20 ゲートが必要になる。
 
-**Decision**: Use UEFI. The firmware provides:
-- File system access (FAT)
-- Memory map
-- Framebuffer (GOP)
+**決定**: UEFI を使う。ファームウェアは次を提供する。
+- ファイルシステムへのアクセス（FAT）
+- メモリマップ
+- フレームバッファ（GOP）
 - ExitBootServices
 
-**Consequence**: Higher complexity in bootloader tooling (FAT image).
-Simpler kernel entry point.
+**結果**: ブートローダー用ツールは FAT イメージを扱うため複雑になる。
+カーネルのエントリーポイントは単純になる。
 
-## ADR-002: Monolithic Kernel
+## ADR-002: モノリシックカーネル
 
-**Status**: Accepted
+**状態**: 採用
 
-**Context**: Need a kernel architecture for the target OS.
+**背景**: 対象 OS のカーネルアーキテクチャが必要である。
 
-**Decision**: Monolithic kernel with in-kernel drivers.
-No microkernel IPC overhead.
-All drivers in kernel space.
+**決定**: カーネル内ドライバを持つモノリシックカーネルにする。
+マイクロカーネル IPC のオーバーヘッドはない。
+すべてのドライバをカーネル空間で動かす。
 
-**Consequence**: Easier development. No driver crashes the kernel.
+**結果**: 開発しやすい。一方で、ドライバのクラッシュがカーネルを巻き込む。
 
 ## ADR-003: Initramfs
 
-**Status**: Accepted
+**状態**: 採用
 
-**Context**: Need a root filesystem without disk drivers.
+**背景**: ディスクドライバなしでルートファイルシステムが必要である。
 
-**Decision**: Embed an initramfs archive in the kernel image.
-Custom simple archive format.
+**決定**: initramfs アーカイブをカーネルイメージに埋め込む。
+独自の単純なアーカイブ形式を使う。
 
-**Consequence**: No disk driver needed at boot.
-Static filesystem that cannot be modified at runtime.
+**結果**: 起動時にディスクドライバは不要になる。
+実行時に変更できない静的ファイルシステムになる。
