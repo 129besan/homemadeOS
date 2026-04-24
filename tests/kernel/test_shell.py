@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_shell_prompt():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="$ ")
     assert "$ " in output

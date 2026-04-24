@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_user_entry():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="user")
     assert "user" in output.lower()

@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_echo_command():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="echo")
     assert "echo" in output.lower()

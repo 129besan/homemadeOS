@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_hello():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="hello")
     assert "hello" in output.lower()

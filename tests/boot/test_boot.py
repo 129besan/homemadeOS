@@ -4,15 +4,15 @@ from conftest import run_qemu
 
 
 def test_kernel_start():
-    output = run_qemu(timeout=15)
+    output = run_qemu(timeout=15, expect="kernel started")
     assert "kernel started" in output.lower()
 
 
 def test_memory_init():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="memory")
     assert "memory" in output.lower()
 
 
 def test_timer_tick():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="tick")
     assert "tick" in output.lower()

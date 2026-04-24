@@ -4,5 +4,5 @@ from conftest import run_qemu
 
 
 def test_spawn():
-    output = run_qemu(timeout=10)
+    output = run_qemu(timeout=10, expect="spawn")
     assert "spawn" in output.lower()
