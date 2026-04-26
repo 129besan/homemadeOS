@@ -72,7 +72,11 @@ pub fn map_page(
             for e in new_table.entries.iter_mut() {
                 e.0 = 0;
             }
-            entry.set_addr(frame.start_addr(), PageFlags::PRESENT | PageFlags::WRITABLE);
+            let mut table_flags = PageFlags::PRESENT | PageFlags::WRITABLE;
+            if flags.contains(PageFlags::USER) {
+                table_flags |= PageFlags::USER;
+            }
+            entry.set_addr(frame.start_addr(), table_flags);
         }
         let next = entry.addr();
         table = unsafe { &mut *(next.0 as *mut PageTable) };

@@ -163,16 +163,19 @@ extern "C" fn test_runner_entry() {
         core::arch::asm!("mov {}, cr3", out(reg) cr3);
         let pml4 = &mut *((cr3 & !0xfff) as *mut mm::paging::page_table::PageTable);
 
+        const USER_CODE_VIRT: u64 = 0x0000_4000_0000_0000;
+        const USER_STACK_VIRT: u64 = 0x0000_4000_0000_7000;
+
         mm::paging::page_table::map_page(
             pml4,
-            mm::addr::VirtAddr(0x1000),
+            mm::addr::VirtAddr(USER_CODE_VIRT),
             code_frame.start_addr(),
             mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
             allocator,
         ).expect("map user code");
         mm::paging::page_table::map_page(
             pml4,
-            mm::addr::VirtAddr(0x7000),
+            mm::addr::VirtAddr(USER_STACK_VIRT),
             stack_frame.start_addr(),
             mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
             allocator,
@@ -186,7 +189,7 @@ extern "C" fn test_runner_entry() {
         ];
         core::ptr::copy_nonoverlapping(code.as_ptr(), code_frame.start_addr().0 as *mut u8, code.len());
 
-        crate::arch::x86_64::enter_user::enter_user_mode(0x1000, 0x7000 + 4096);
+        crate::arch::x86_64::enter_user::enter_user_mode(USER_CODE_VIRT, USER_STACK_VIRT + 4096);
     }
 
     loop {
