@@ -7,6 +7,10 @@ import pytest
 
 def build_current_image() -> None:
     subprocess.run(
+        [sys.executable, "tools/build_initramfs.py"],
+        check=True,
+    )
+    subprocess.run(
         ["cargo", "build", "--package", "kernel", "--target", "x86_64-unknown-none"],
         check=True,
     )

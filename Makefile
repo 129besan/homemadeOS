@@ -23,6 +23,7 @@ clean:
 	docker compose run --rm dev make clean INSIDE_DOCKER=1
 else
 build:
+	python3 tools/build_initramfs.py
 	cargo build --package kernel --target x86_64-unknown-none
 	cargo build --package bootloader --target x86_64-unknown-uefi
 

@@ -106,6 +106,7 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     unsafe {
         arch::x86_64::boot::init();
     }
+    fs::mount::mount_root(boot_info);
 
     unsafe {
         let sched = &mut crate::sched::scheduler::SCHEDULER;
