@@ -1,3 +1,14 @@
 [workspace]
 resolver = "2"
-members = ["bootloader", "kernel"]
+members = [
+    "bootloader",
+    "kernel",
+    "libs/libc-lite",
+    "libs/syscall",
+    "userspace/cat",
+    "userspace/echo",
+    "userspace/hello",
+    "userspace/init",
+    "userspace/ls",
+    "userspace/shell",
+]
