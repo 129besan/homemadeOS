@@ -146,6 +146,12 @@ extern "C" fn test_runner_entry() {
     kprintln!("getpid");
     kprintln!("open");
     kprintln!("read");
+    if let Ok(mut file) = crate::fs::mount::open("/init") {
+        let mut buf = [0u8; 16];
+        if file.read(&mut buf).unwrap_or(0) > 0 {
+            kprintln!("initramfs read");
+        }
+    }
     kprintln!("close");
     kprintln!("enoent");
     kprintln!("spawn");

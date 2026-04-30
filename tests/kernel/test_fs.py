@@ -6,6 +6,10 @@ def test_read(qemu_output):
     assert "read" in qemu_output.lower()
 
 
+def test_initramfs_read(qemu_output):
+    assert "initramfs read" in qemu_output.lower()
+
+
 def test_close(qemu_output):
     assert "close" in qemu_output.lower()
 

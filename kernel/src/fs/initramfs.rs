@@ -24,6 +24,9 @@ pub struct Initramfs {
     size: usize,
 }
 
+unsafe impl Send for Initramfs {}
+unsafe impl Sync for Initramfs {}
+
 impl Initramfs {
     pub fn new(base: u64, size: usize) -> Option<Self> {
         if size < core::mem::size_of::<InitramfsHeader>() {
@@ -55,6 +58,7 @@ impl Initramfs {
     }
 
     fn lookup_entry(&self, path: &str) -> Option<&InitramfsEntry> {
+        let path = path.strip_prefix('/').unwrap_or(path);
         let st = self.string_table();
         for entry in self.entries() {
             let name_end = st[entry.name_offset as usize..]
