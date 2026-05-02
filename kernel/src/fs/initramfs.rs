@@ -1,8 +1,7 @@
-use crate::fs::vfs::{FileRef, InodeRef, DirEntry, FileOps, InodeOps};
+use crate::fs::vfs::{FileOps, SeekFrom};
 use crate::fs::errno::Errno;
-use alloc::sync::Arc;
+use crate::sync::spinlock::SpinLock;
 use alloc::vec::Vec;
-use core::ops::Deref;
 
 #[repr(C)]
 pub struct InitramfsHeader {
@@ -77,47 +76,51 @@ impl Initramfs {
         let entry = self.lookup_entry(path)?;
         let data_ptr = unsafe { self.base.add(entry.data_offset as usize) };
         let data = unsafe { core::slice::from_raw_parts(data_ptr, entry.data_len as usize) };
-        Some(InitramfsFile { data: data.to_vec(), pos: 0 })
+        Some(InitramfsFile { data: data.to_vec(), pos: SpinLock::new(0) })
     }
 }
 
 pub struct InitramfsFile {
     data: Vec<u8>,
-    pos: usize,
+    pos: SpinLock<usize>,
 }
 
 impl FileOps for InitramfsFile {
-    fn read(&self, _buf: &mut [u8]) -> Result<usize, Errno> {
-        Err(Errno::ENOSYS)
+    fn read(&self, buf: &mut [u8]) -> Result<usize, Errno> {
+        InitramfsFile::read(self, buf)
     }
+
     fn write(&self, _buf: &[u8]) -> Result<usize, Errno> {
         Err(Errno::ENOSYS)
     }
-    fn seek(&self, _offset: SeekFrom) -> Result<u64, Errno> {
-        Err(Errno::ENOSYS)
+
+    fn seek(&self, offset: SeekFrom) -> Result<u64, Errno> {
+        InitramfsFile::seek(self, offset)
     }
 }
 
 impl InitramfsFile {
-    pub fn read(&mut self, buf: &mut [u8]) -> Result<usize, Errno> {
-        let remaining = self.data.len().saturating_sub(self.pos);
+    pub fn read(&self, buf: &mut [u8]) -> Result<usize, Errno> {
+        let mut pos = self.pos.lock();
+        let remaining = self.data.len().saturating_sub(*pos);
         let to_read = buf.len().min(remaining);
         if to_read > 0 {
-            buf[..to_read].copy_from_slice(&self.data[self.pos..self.pos + to_read]);
-            self.pos += to_read;
+            buf[..to_read].copy_from_slice(&self.data[*pos..*pos + to_read]);
+            *pos += to_read;
         }
         Ok(to_read)
     }
 
-    pub fn seek(&mut self, offset: SeekFrom) -> Result<u64, Errno> {
+    pub fn seek(&self, offset: SeekFrom) -> Result<u64, Errno> {
+        let mut pos = self.pos.lock();
         let new_pos = match offset {
             SeekFrom::Start(n) => n as usize,
-            SeekFrom::Current(n) => self.pos.saturating_add(n as usize),
-            SeekFrom::End(n) => self.data.len().saturating_add(n as usize),
+            SeekFrom::Current(n) if n >= 0 => pos.saturating_add(n as usize),
+            SeekFrom::Current(n) => pos.saturating_sub((-n) as usize),
+            SeekFrom::End(n) if n >= 0 => self.data.len().saturating_add(n as usize),
+            SeekFrom::End(n) => self.data.len().saturating_sub((-n) as usize),
         };
-        self.pos = new_pos.min(self.data.len());
-        Ok(self.pos as u64)
+        *pos = new_pos.min(self.data.len());
+        Ok(*pos as u64)
     }
 }
-
-use crate::fs::vfs::SeekFrom;
