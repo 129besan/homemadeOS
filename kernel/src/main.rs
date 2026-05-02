@@ -158,6 +158,14 @@ extern "C" fn test_runner_entry() {
             kprintln!("initramfs fileops read");
         }
     }
+    if let Ok(file) = crate::fs::mount::open_file("/init") {
+        let mut table = crate::fs::fdtable::FileTable::new();
+        let fd = table.insert(file);
+        let mut buf = [0u8; 16];
+        if table.get(fd).unwrap().read(&mut buf).unwrap_or(0) > 0 {
+            kprintln!("fdtable read");
+        }
+    }
     kprintln!("close");
     kprintln!("enoent");
     kprintln!("spawn");

@@ -14,6 +14,10 @@ def test_initramfs_fileops_read(qemu_output):
     assert "initramfs fileops read" in qemu_output.lower()
 
 
+def test_fdtable_read(qemu_output):
+    assert "fdtable read" in qemu_output.lower()
+
+
 def test_close(qemu_output):
     assert "close" in qemu_output.lower()
 

@@ -1,7 +1,9 @@
 use crate::fs::errno::Errno;
 use crate::fs::initramfs::Initramfs;
+use crate::fs::vfs::FileRef;
 use crate::sync::spinlock::SpinLock;
 use crate::BootInfo;
+use alloc::sync::Arc;
 
 static EMBEDDED_INITRAMFS: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/initramfs.img"));
 static ROOT_INITRAMFS: SpinLock<Option<Initramfs>> = SpinLock::new(None);
@@ -26,4 +28,8 @@ pub fn open(path: &str) -> Result<crate::fs::initramfs::InitramfsFile, Errno> {
     let initramfs = ROOT_INITRAMFS.lock();
     let initramfs = initramfs.as_ref().ok_or(Errno::ENOENT)?;
     initramfs.lookup_and_open(path).ok_or(Errno::ENOENT)
+}
+
+pub fn open_file(path: &str) -> Result<FileRef, Errno> {
+    Ok(Arc::new(open(path)?) as FileRef)
 }
