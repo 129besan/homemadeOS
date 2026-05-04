@@ -12,3 +12,7 @@ def test_syscall_spawn(qemu_output):
 
 def test_syscall_wait(qemu_output):
     assert "wait" in qemu_output.lower()
+
+
+def test_syscall_fs_read(qemu_output):
+    assert "syscall fs read" in qemu_output.lower()

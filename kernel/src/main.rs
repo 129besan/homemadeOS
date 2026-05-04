@@ -166,6 +166,13 @@ extern "C" fn test_runner_entry() {
             kprintln!("fdtable read");
         }
     }
+    if let Ok(fd) = crate::syscall::fs::open_path("/init") {
+        let mut buf = [0u8; 16];
+        if crate::syscall::fs::read_fd(fd, &mut buf).unwrap_or(0) > 0 {
+            kprintln!("syscall fs read");
+        }
+        let _ = crate::syscall::fs::close_fd(fd);
+    }
     kprintln!("close");
     kprintln!("enoent");
     kprintln!("spawn");
