@@ -29,6 +29,7 @@ pub struct BootInfo {
 }
 
 pub static mut BOOT_INFO: Option<&'static BootInfo> = None;
+static mut SYSCALL_TEST_BUF: [u8; 16] = [0; 16];
 
 mod arch;
 pub mod drivers;
@@ -146,19 +147,19 @@ extern "C" fn test_runner_entry() {
     kprintln!("getpid");
     kprintln!("open");
     kprintln!("read");
-    if let Ok(file) = crate::fs::mount::open("/init") {
+    if let Ok(file) = crate::fs::mount::open("/etc/motd") {
         let mut buf = [0u8; 16];
         if file.read(&mut buf).unwrap_or(0) > 0 {
             kprintln!("initramfs read");
         }
     }
-    if let Ok(file) = crate::fs::mount::open("/init") {
+    if let Ok(file) = crate::fs::mount::open("/etc/motd") {
         let mut buf = [0u8; 16];
         if crate::fs::vfs::FileOps::read(&file, &mut buf).unwrap_or(0) > 0 {
             kprintln!("initramfs fileops read");
         }
     }
-    if let Ok(file) = crate::fs::mount::open_file("/init") {
+    if let Ok(file) = crate::fs::mount::open_file("/etc/motd") {
         let mut table = crate::fs::fdtable::FileTable::new();
         let fd = table.insert(file);
         let mut buf = [0u8; 16];
@@ -166,12 +167,22 @@ extern "C" fn test_runner_entry() {
             kprintln!("fdtable read");
         }
     }
-    if let Ok(fd) = crate::syscall::fs::open_path("/init") {
+    if let Ok(fd) = crate::syscall::fs::open_path("/etc/motd") {
         let mut buf = [0u8; 16];
         if crate::syscall::fs::read_fd(fd, &mut buf).unwrap_or(0) > 0 {
             kprintln!("syscall fs read");
         }
         let _ = crate::syscall::fs::close_fd(fd);
+    }
+    let path = b"/etc/motd\0";
+    let fd = crate::syscall::handler::sys_open(0, path.as_ptr() as u64, 0, 0, 0, 0, 0);
+    if fd >= 0 {
+        let buf = core::ptr::addr_of_mut!(SYSCALL_TEST_BUF) as *mut u8;
+        let read = crate::syscall::handler::sys_read(0, fd as u64, buf as u64, 16, 0, 0, 0);
+        let _ = crate::syscall::handler::sys_close(0, fd as u64, 0, 0, 0, 0, 0);
+        if read > 0 {
+            kprintln!("syscall handler read");
+        }
     }
     kprintln!("close");
     kprintln!("enoent");

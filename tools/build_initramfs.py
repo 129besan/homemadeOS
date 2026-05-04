@@ -20,7 +20,10 @@ def cargo_build_userspace() -> None:
 
 def copy_programs(root_dir: Path) -> None:
     bin_dir = root_dir / "bin"
+    etc_dir = root_dir / "etc"
     bin_dir.mkdir(parents=True, exist_ok=True)
+    etc_dir.mkdir(parents=True, exist_ok=True)
+    (etc_dir / "motd").write_text("hello from initramfs\n")
 
     target_dir = ROOT / "target" / TARGET / "debug"
     for program in PROGRAMS:
