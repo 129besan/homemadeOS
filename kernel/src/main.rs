@@ -187,6 +187,9 @@ extern "C" fn test_runner_entry() {
     kprintln!("close");
     kprintln!("enoent");
     kprintln!("spawn");
+    if crate::proc::spawn::spawn_elf("/bin/hello", &[]).is_ok() {
+        kprintln!("spawn elf loaded");
+    }
     kprintln!("wait");
     kprint!("$ ");
     kprintln!("echo");

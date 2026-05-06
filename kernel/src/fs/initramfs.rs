@@ -74,7 +74,8 @@ impl Initramfs {
 
     pub fn lookup_and_open(&self, path: &str) -> Option<InitramfsFile> {
         let entry = self.lookup_entry(path)?;
-        let data_ptr = unsafe { self.base.add(entry.data_offset as usize) };
+        let data_start = self.header().data_offset as usize;
+        let data_ptr = unsafe { self.base.add(data_start + entry.data_offset as usize) };
         let data = unsafe { core::slice::from_raw_parts(data_ptr, entry.data_len as usize) };
         Some(InitramfsFile { data: data.to_vec(), pos: SpinLock::new(0) })
     }
