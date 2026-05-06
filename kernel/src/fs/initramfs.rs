@@ -101,6 +101,10 @@ impl FileOps for InitramfsFile {
 }
 
 impl InitramfsFile {
+    pub fn as_slice(&self) -> &[u8] {
+        &self.data
+    }
+
     pub fn read(&self, buf: &mut [u8]) -> Result<usize, Errno> {
         let mut pos = self.pos.lock();
         let remaining = self.data.len().saturating_sub(*pos);

@@ -20,3 +20,7 @@ def test_syscall_fs_read(qemu_output):
 
 def test_syscall_handler_read(qemu_output):
     assert "syscall handler read" in qemu_output.lower()
+
+
+def test_syscall_spawn_elf(qemu_output):
+    assert "syscall spawn elf" in qemu_output.lower()

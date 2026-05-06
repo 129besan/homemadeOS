@@ -74,7 +74,10 @@ pub fn sys_spawn(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: 
         Err(_) => return -14,
     };
     crate::log_info!("sys_spawn: {}", path);
-    -38
+    match crate::proc::spawn::spawn_elf(&path, &[]) {
+        Ok(entry) => entry as isize,
+        Err(()) => -2,
+    }
 }
 
 pub fn sys_wait(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {

@@ -190,6 +190,10 @@ extern "C" fn test_runner_entry() {
     if crate::proc::spawn::spawn_elf("/bin/hello", &[]).is_ok() {
         kprintln!("spawn elf loaded");
     }
+    let spawn_path = b"/bin/hello\0";
+    if crate::syscall::handler::sys_spawn(0, spawn_path.as_ptr() as u64, 0, 0, 0, 0, 0) >= 0 {
+        kprintln!("syscall spawn elf");
+    }
     kprintln!("wait");
     kprint!("$ ");
     kprintln!("echo");
