@@ -4,3 +4,7 @@ def test_spawn(qemu_output):
 
 def test_spawn_elf_loaded(qemu_output):
     assert "spawn elf loaded" in qemu_output.lower()
+
+
+def test_spawn_segment_mapped(qemu_output):
+    assert "spawn segment mapped" in qemu_output.lower()

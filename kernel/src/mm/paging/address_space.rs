@@ -24,6 +24,9 @@ impl AddressSpace {
 
         let active_pml4 = active_pml4();
         unsafe {
+            for i in 0..512 {
+                (*pml4).entries[i].0 = 0;
+            }
             for i in 256..512 {
                 (*pml4).entries[i] = (*active_pml4).entries[i];
             }
@@ -46,6 +49,27 @@ impl AddressSpace {
             }
         }
         VirtAddr(USER_STACK_TOP)
+    }
+
+    pub fn map_user_page(&mut self, virt: VirtAddr, flags: PageFlags) -> Result<PhysAddr, ()> {
+        let mut alloc_guard = FRAME_ALLOCATOR.lock();
+        let allocator = alloc_guard.as_mut().ok_or(())?;
+        let frame = allocator.alloc().ok_or(())?;
+        let phys = frame.start_addr();
+
+        unsafe {
+            core::ptr::write_bytes(phys.0 as *mut u8, 0, PAGE_SIZE as usize);
+            let pml4 = &mut *self.pml4;
+            map_page(
+                pml4,
+                virt,
+                phys,
+                flags | PageFlags::USER | PageFlags::PRESENT,
+                allocator,
+            )?;
+        }
+
+        Ok(phys)
     }
 }
 

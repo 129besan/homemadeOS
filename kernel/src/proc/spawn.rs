@@ -14,6 +14,8 @@ pub fn spawn_elf(path: &str, _argv: &[&str]) -> Result<u64, ()> {
         return Err(());
     }
 
-    crate::log_info!("spawn_elf: entry={:#x}", header.e_entry);
-    Ok(header.e_entry)
+    let mut address_space = crate::mm::paging::address_space::AddressSpace::new_user();
+    let entry = crate::proc::elf::map_loadable_segments(data, &mut address_space)?;
+    crate::log_info!("spawn_elf: entry={:#x}", entry);
+    Ok(entry)
 }
