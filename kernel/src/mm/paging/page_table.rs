@@ -61,6 +61,7 @@ pub fn map_page(
     flags: PageFlags,
     allocator: &mut FrameAllocator,
 ) -> Result<(), ()> {
+    let _wp_guard = unsafe { WriteProtectGuard::disable() };
     let indices = virt_indices(virt);
     let mut table = pml4;
 
@@ -85,6 +86,27 @@ pub fn map_page(
     let entry = &mut table.entries[indices[3] as usize];
     entry.set_addr(phys, flags | PageFlags::PRESENT);
     Ok(())
+}
+
+struct WriteProtectGuard {
+    cr0: u64,
+}
+
+impl WriteProtectGuard {
+    unsafe fn disable() -> Self {
+        let cr0: u64;
+        core::arch::asm!("mov {}, cr0", out(reg) cr0);
+        core::arch::asm!("mov cr0, {}", in(reg) cr0 & !(1 << 16));
+        WriteProtectGuard { cr0 }
+    }
+}
+
+impl Drop for WriteProtectGuard {
+    fn drop(&mut self) {
+        unsafe {
+            core::arch::asm!("mov cr0, {}", in(reg) self.cr0);
+        }
+    }
 }
 
 pub fn translate(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {

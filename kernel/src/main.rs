@@ -233,7 +233,7 @@ extern "C" fn test_runner_entry() {
             0x48, 0xA1, 0x00, 0x00, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00,
             0xF4,
         ];
-        core::ptr::copy_nonoverlapping(code.as_ptr(), code_frame.start_addr().0 as *mut u8, code.len());
+        core::ptr::copy_nonoverlapping(code.as_ptr(), USER_CODE_VIRT as *mut u8, code.len());
 
         crate::arch::x86_64::enter_user::enter_user_mode(USER_CODE_VIRT, USER_STACK_VIRT + 4096);
     }
