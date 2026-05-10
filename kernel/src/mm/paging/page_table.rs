@@ -34,6 +34,7 @@ impl PageTableEntry {
 }
 
 pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> {
+    let _wp_guard = unsafe { WriteProtectGuard::disable() };
     let indices = virt_indices(virt);
     let mut table = pml4;
     for &level in &indices[..3] {
@@ -50,7 +51,7 @@ pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> 
     }
     let phys = entry.addr();
     entry.0 = 0;
-    unsafe { core::arch::asm!("invlpg ({0})", in(reg) virt.0, options(nostack, preserves_flags)) };
+    unsafe { core::arch::asm!("invlpg [{0}]", in(reg) virt.0, options(nostack, preserves_flags)) };
     Ok(phys)
 }
 

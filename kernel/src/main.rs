@@ -194,6 +194,11 @@ extern "C" fn test_runner_entry() {
     if crate::syscall::handler::sys_spawn(0, spawn_path.as_ptr() as u64, 0, 0, 0, 0, 0) >= 0 {
         kprintln!("syscall spawn elf");
     }
+    let mmap_addr = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    if mmap_addr >= 0 {
+        kprintln!("mmap");
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_addr as u64, 4096, 0, 0, 0, 0);
+    }
     kprintln!("wait");
     kprint!("$ ");
     kprintln!("echo");
