@@ -3,6 +3,7 @@
 #![feature(abi_efiapi)]
 
 mod elf_loader;
+mod framebuffer;
 mod handoff;
 mod memory_map;
 mod uefi;
@@ -124,6 +125,13 @@ pub extern "efiapi" fn efi_main(
     boot_info.kernel_phys_end = phys_end;
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
+    if let Some(framebuffer) = framebuffer::detect_framebuffer(st) {
+        boot_info.framebuffer_base = framebuffer.base;
+        boot_info.framebuffer_width = framebuffer.width;
+        boot_info.framebuffer_height = framebuffer.height;
+        boot_info.framebuffer_stride = framebuffer.stride;
+        boot_info.framebuffer_format = framebuffer.format;
+    }
 
     let bs = unsafe { &*st.boot_services };
     let get_memory_map: uefi::GetMemoryMapFn = unsafe { core::mem::transmute(bs.get_memory_map) };

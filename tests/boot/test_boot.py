@@ -12,3 +12,9 @@ def test_initramfs_mount(qemu_output):
 
 def test_timer_tick(qemu_output):
     assert "tick" in qemu_output.lower()
+
+
+def test_framebuffer_detected(qemu_output):
+    output = qemu_output.lower()
+    assert "framebuffer" in output
+    assert "framebuffer 0x0" not in output
