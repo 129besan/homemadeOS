@@ -18,3 +18,7 @@ def test_framebuffer_detected(qemu_output):
     output = qemu_output.lower()
     assert "framebuffer" in output
     assert "framebuffer 0x0" not in output
+
+
+def test_memory_map_summary(qemu_output):
+    assert "usable memory" in qemu_output.lower()

@@ -91,6 +91,16 @@ pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
     ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
+    let memory_regions = mm::memory_map::parse_memory_map(boot_info);
+    let mut usable_regions = 0usize;
+    let mut usable_bytes = 0u64;
+    for region in memory_regions {
+        if region.region_type == mm::memory_map::MemoryRegionType::Usable as u32 {
+            usable_regions += 1;
+            usable_bytes += region.length;
+        }
+    }
+    log_info!("usable memory: {} regions, {} bytes", usable_regions, usable_bytes);
     log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
     mm::frame_allocator::init_frame_allocator(boot_info);
     log_info!("frame allocator initialized");
