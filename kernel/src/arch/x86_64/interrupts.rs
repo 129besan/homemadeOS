@@ -60,6 +60,16 @@ extern "x86-interrupt" fn exc_page_fault(frame: &mut InterruptFrame, error_code:
         "page fault at {:#x}, ip={:#x}, present={}, write={}, user={}",
         cr2, frame.ip, present, write, user,
     );
+    if user {
+        let pid = unsafe {
+            crate::sched::scheduler::SCHEDULER
+                .current()
+                .map(|thread| thread.pid)
+                .unwrap_or(crate::sched::task::Pid(0))
+        };
+        crate::proc::process::kill_user_task(pid);
+        crate::kprintln!("killed");
+    }
     loop { unsafe { core::arch::asm!("hlt"); } }
 }
 
