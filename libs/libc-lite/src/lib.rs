@@ -119,3 +119,36 @@ pub fn getpid() -> isize {
     }
     ret
 }
+
+pub fn mmap(addr: usize, len: usize, prot: usize) -> isize {
+    let ret: isize;
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 9usize => ret,
+            in("rdi") addr,
+            in("rsi") len,
+            in("rdx") prot,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+    ret
+}
+
+pub fn munmap(addr: usize, len: usize) -> isize {
+    let ret: isize;
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 10usize => ret,
+            in("rdi") addr,
+            in("rsi") len,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+    ret
+}
