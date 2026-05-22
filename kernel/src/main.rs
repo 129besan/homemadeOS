@@ -209,6 +209,13 @@ extern "C" fn test_runner_entry() {
         kprintln!("mmap");
         let _ = crate::syscall::handler::sys_munmap(0, mmap_addr as u64, 4096, 0, 0, 0, 0);
     }
+    let mmap_first = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    let mmap_second = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    if mmap_first >= 0 && mmap_second >= 0 && mmap_first != mmap_second {
+        kprintln!("mmap distinct");
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_first as u64, 4096, 0, 0, 0, 0);
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_second as u64, 4096, 0, 0, 0, 0);
+    }
     kprintln!("wait");
     kprint!("$ ");
     kprintln!("echo");

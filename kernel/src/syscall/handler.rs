@@ -1,3 +1,7 @@
+use core::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_MMAP_ADDR: AtomicU64 = AtomicU64::new(0x0000_4000_0000_8000);
+
 pub fn sys_exit(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u64) -> isize {
     let code = rdi as i32;
     crate::log_info!("process exit with code {}", code);
@@ -103,19 +107,18 @@ pub fn sys_mmap(rax: u64, rdi: u64, rsi: u64, rdx: u64, r10: u64, r8: u64, r9: u
     use crate::mm::paging::flags::PageFlags;
     use crate::mm::paging::page_table::{map_page, PageTable};
 
-    const DEFAULT_MMAP_BASE: u64 = 0x0000_4000_0000_8000;
-
     let len = rsi;
     if len == 0 {
         return -1;
     }
 
+    let pages = (len + PAGE_SIZE - 1) / PAGE_SIZE;
+    let map_len = pages * PAGE_SIZE;
     let start = if rdi == 0 {
-        DEFAULT_MMAP_BASE
+        NEXT_MMAP_ADDR.fetch_add(map_len, Ordering::SeqCst)
     } else {
         rdi & !(PAGE_SIZE - 1)
     };
-    let pages = (len + PAGE_SIZE - 1) / PAGE_SIZE;
 
     let cr3: u64;
     unsafe { core::arch::asm!("mov {}, cr3", out(reg) cr3); }
