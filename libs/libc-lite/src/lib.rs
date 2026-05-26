@@ -120,6 +120,18 @@ pub fn getpid() -> isize {
     ret
 }
 
+pub fn yield_now() {
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            in("rax") 8usize,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+}
+
 pub fn mmap(addr: usize, len: usize, prot: usize) -> isize {
     let ret: isize;
     unsafe {

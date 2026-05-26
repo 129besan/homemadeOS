@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use libc_lite::{mmap, munmap, write};
+use libc_lite::{mmap, munmap, write, yield_now};
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
@@ -10,6 +10,7 @@ pub extern "C" fn _start() -> ! {
     if addr >= 0 {
         let _ = munmap(addr as usize, 4096);
     }
+    yield_now();
     write(1, msg);
     loop {}
 }
