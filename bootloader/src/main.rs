@@ -138,32 +138,40 @@ pub extern "efiapi" fn efi_main(
     let exit_boot_services: uefi::ExitBootServicesFn =
         unsafe { core::mem::transmute(bs.exit_boot_services) };
 
-    let mut memory_map_size = core::mem::size_of::<[u8; 65536]>();
-    let mut map_key: usize = 0;
-    let mut descriptor_size: usize = 0;
-    let mut descriptor_version: u32 = 0;
+    let mut region_count = 0usize;
+    let mut exited_boot_services = false;
+    for _ in 0..3 {
+        let mut memory_map_size = core::mem::size_of::<[u8; 65536]>();
+        let mut map_key: usize = 0;
+        let mut descriptor_size: usize = 0;
+        let mut descriptor_version: u32 = 0;
 
-    let status = get_memory_map(
-        &mut memory_map_size,
-        unsafe { MEMORY_MAP_BUFFER.as_mut_ptr() },
-        &mut map_key,
-        &mut descriptor_size,
-        &mut descriptor_version,
-    );
-    if status != 0 {
-        loop {}
+        let status = get_memory_map(
+            &mut memory_map_size,
+            unsafe { MEMORY_MAP_BUFFER.as_mut_ptr() },
+            &mut map_key,
+            &mut descriptor_size,
+            &mut descriptor_version,
+        );
+        if status != 0 {
+            loop {}
+        }
+
+        let num_entries = memory_map_size / descriptor_size;
+        region_count = convert_memory_map(
+            unsafe { MEMORY_MAP_BUFFER.as_ptr() },
+            num_entries,
+            descriptor_size,
+            unsafe { &mut MEMORY_REGIONS },
+        );
+
+        let status = exit_boot_services(_image_handle, map_key);
+        if status == 0 {
+            exited_boot_services = true;
+            break;
+        }
     }
-
-    let num_entries = memory_map_size / descriptor_size;
-    let region_count = convert_memory_map(
-        unsafe { MEMORY_MAP_BUFFER.as_ptr() },
-        num_entries,
-        descriptor_size,
-        unsafe { &mut MEMORY_REGIONS },
-    );
-
-    let status = exit_boot_services(_image_handle, map_key);
-    if status != 0 {
+    if !exited_boot_services {
         loop {}
     }
 
