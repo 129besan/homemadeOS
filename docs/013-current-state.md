@@ -20,6 +20,7 @@
 - ブートローダーが `Hello from MyOS!` を出力する。
 - ブートローダーが静的カーネル ELF をロードする。
 - カーネルのシリアル出力が `kernel started` まで到達する。
+- `ExitBootServices` は memory map key が変わった場合に再試行する。
 - UEFI GOP から取得したフレームバッファ情報を BootInfo 経由で渡せる。
 
 ## 現在通る確認項目
@@ -38,7 +39,6 @@ kernel started
 
 ## 残っている問題
 
-- `ExitBootServices` はまだ正しく接続できていない。
 - BootInfo のメモリマップフィールドは仮実装である。
 - 後半のスモークテストの多くは、動作中の機能ではなく予定している振る舞いを記述している。
 
