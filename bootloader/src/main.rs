@@ -195,11 +195,7 @@ fn convert_memory_map(
     for i in 0..efi_entries {
         let desc = unsafe { efi_map.add(i * efi_desc_size) as *const memory_map::MemoryDescriptor };
         let ty = unsafe { (*desc).descriptor_type };
-        let region_type = match ty {
-            7 => 1,     // EfiConventionalMemory -> Usable
-            4 | 5 => 1, // EfiBootServicesCode/Data -> Usable after ExitBootServices
-            _ => 2,     // Reserved
-        };
+        let region_type = memory_map::region_type_from_efi(ty);
         let pages = unsafe { (*desc).number_of_pages };
         if pages > 0 && count < out.len() {
             out[count] = handoff::MemoryRegion {
