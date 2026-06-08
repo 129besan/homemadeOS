@@ -34,6 +34,7 @@ impl PageTableEntry {
 }
 
 pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> {
+    let _wp_guard = unsafe { WriteProtectGuard::disable() };
     let indices = virt_indices(virt);
     let mut table = pml4;
     for &level in &indices[..3] {
@@ -50,7 +51,7 @@ pub fn unmap_page(pml4: &mut PageTable, virt: VirtAddr) -> Result<PhysAddr, ()> 
     }
     let phys = entry.addr();
     entry.0 = 0;
-    unsafe { core::arch::asm!("invlpg ({0})", in(reg) virt.0, options(nostack, preserves_flags)) };
+    unsafe { core::arch::asm!("invlpg [{0}]", in(reg) virt.0, options(nostack, preserves_flags)) };
     Ok(phys)
 }
 
@@ -61,6 +62,7 @@ pub fn map_page(
     flags: PageFlags,
     allocator: &mut FrameAllocator,
 ) -> Result<(), ()> {
+    let _wp_guard = unsafe { WriteProtectGuard::disable() };
     let indices = virt_indices(virt);
     let mut table = pml4;
 
@@ -72,7 +74,11 @@ pub fn map_page(
             for e in new_table.entries.iter_mut() {
                 e.0 = 0;
             }
-            entry.set_addr(frame.start_addr(), PageFlags::PRESENT | PageFlags::WRITABLE);
+            let mut table_flags = PageFlags::PRESENT | PageFlags::WRITABLE;
+            if flags.contains(PageFlags::USER) {
+                table_flags |= PageFlags::USER;
+            }
+            entry.set_addr(frame.start_addr(), table_flags);
         }
         let next = entry.addr();
         table = unsafe { &mut *(next.0 as *mut PageTable) };
@@ -81,6 +87,27 @@ pub fn map_page(
     let entry = &mut table.entries[indices[3] as usize];
     entry.set_addr(phys, flags | PageFlags::PRESENT);
     Ok(())
+}
+
+struct WriteProtectGuard {
+    cr0: u64,
+}
+
+impl WriteProtectGuard {
+    unsafe fn disable() -> Self {
+        let cr0: u64;
+        core::arch::asm!("mov {}, cr0", out(reg) cr0);
+        core::arch::asm!("mov cr0, {}", in(reg) cr0 & !(1 << 16));
+        WriteProtectGuard { cr0 }
+    }
+}
+
+impl Drop for WriteProtectGuard {
+    fn drop(&mut self) {
+        unsafe {
+            core::arch::asm!("mov cr0, {}", in(reg) self.cr0);
+        }
+    }
 }
 
 pub fn translate(pml4: &PageTable, virt: VirtAddr) -> Option<PhysAddr> {

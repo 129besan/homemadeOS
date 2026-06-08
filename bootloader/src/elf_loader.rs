@@ -1,4 +1,5 @@
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Elf64Header {
     pub magic: [u8; 4],
     pub class: u8,
@@ -23,6 +24,7 @@ pub struct Elf64Header {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Elf64ProgramHeader {
     pub p_type: u32,
     pub p_flags: u32,
@@ -60,8 +62,23 @@ pub fn validate_elf(header: &Elf64Header) -> bool {
     true
 }
 
-pub fn program_headers<'a>(header: &'a Elf64Header) -> &'a [Elf64ProgramHeader] {
-    let count = header.e_phnum as usize;
-    let ptr = (header as *const Elf64Header as usize + header.e_phoff as usize) as *const Elf64ProgramHeader;
-    unsafe { core::slice::from_raw_parts(ptr, count) }
+pub fn read_header(data: &[u8]) -> Option<Elf64Header> {
+    if data.len() < core::mem::size_of::<Elf64Header>() {
+        return None;
+    }
+    let ptr = data.as_ptr() as *const Elf64Header;
+    Some(unsafe { ptr.read_unaligned() })
+}
+
+pub fn program_header(data: &[u8], header: &Elf64Header, index: usize) -> Option<Elf64ProgramHeader> {
+    if index >= header.e_phnum as usize {
+        return None;
+    }
+    let offset = header.e_phoff as usize + index * header.e_phentsize as usize;
+    let end = offset.checked_add(core::mem::size_of::<Elf64ProgramHeader>())?;
+    if end > data.len() {
+        return None;
+    }
+    let ptr = unsafe { data.as_ptr().add(offset) as *const Elf64ProgramHeader };
+    Some(unsafe { ptr.read_unaligned() })
 }

@@ -1,43 +1,43 @@
-# MyOS Overview
+# MyOS 概要
 
-## Goal
+## 目標
 
-A small x86_64 operating system that boots via UEFI, runs a higher-half
-monolithic kernel, supports user-mode ELF programs, and provides a tiny shell.
+UEFI から起動し、ハイヤーハーフのモノリシックカーネル、ユーザーモード ELF
+プログラム、小さなシェルを備える x86_64 学習用 OS を作る。
 
-## Architecture
+## アーキテクチャ
 
 ```
-Architecture: x86_64
-Boot: UEFI
-Kernel: monolithic
-Language: Rust + assembly
-Memory model: higher-half kernel (0xffff_8000_...)
-Process model: user/kernel separation
-Executable format: ELF64
-Filesystem: initramfs -> simple FS
-Scheduler: preemptive round-robin
-Target emulator: QEMU
+アーキテクチャ: x86_64
+起動方式: UEFI
+カーネル: モノリシック
+言語: Rust + アセンブリ
+メモリモデル: ハイヤーハーフカーネル (0xffff_8000_...)
+プロセスモデル: ユーザー空間とカーネル空間を分離
+実行形式: ELF64
+ファイルシステム: initramfs -> 単純な FS
+スケジューラ: プリエンプティブ・ラウンドロビン
+対象エミュレータ: QEMU
 ```
 
-## Non-goals
+## 対象外
 
-- Linux compatibility
+- Linux 互換性
 - SMP
-- dynamic linking
-- journaling filesystem
-- production-grade security
+- 動的リンク
+- ジャーナリングファイルシステム
+- 本番環境水準のセキュリティ
 
-## Milestones
+## マイルストーン
 
-1. Boot — UEFI bootloader hands off to kernel
-2. Kernel logging — serial output works
-3. Physical memory — frame allocator
-4. Paging — page table management
-5. Interrupts — IDT, exceptions, timer
-6. Scheduling — kernel threads, preemption
-7. User mode — ring 3 entry
-8. Syscalls — user-to-kernel interface
-9. Initramfs — embedded filesystem
-10. ELF loader — spawn user programs
-11. Shell — interactive command line
+1. 起動: UEFI ブートローダーからカーネルへ制御を渡す
+2. カーネルログ: シリアル出力を動かす
+3. 物理メモリ: フレームアロケータを実装する
+4. ページング: ページテーブルを管理する
+5. 割り込み: IDT、例外、タイマーを実装する
+6. スケジューリング: カーネルスレッドとプリエンプションを実装する
+7. ユーザーモード: ring 3 へ移行する
+8. システムコール: ユーザー空間からカーネルへのインターフェースを実装する
+9. Initramfs: 組み込みファイルシステムを実装する
+10. ELF ローダー: ユーザープログラムを起動する
+11. シェル: 対話的なコマンドラインを実装する

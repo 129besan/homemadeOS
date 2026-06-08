@@ -9,7 +9,7 @@ fn read_line(buf: &mut [u8]) -> usize {
     let mut pos = 0;
     loop {
         let mut c = [0u8; 1];
-        let ret = unsafe { libc_lite::read(0, &mut c) };
+        let ret = libc_lite::read(0, &mut c);
         if ret <= 0 {
             break;
         }
@@ -22,7 +22,7 @@ fn read_line(buf: &mut [u8]) -> usize {
     pos
 }
 
-fn split_argv(line: &[u8], argv: &mut [&[u8]]) -> usize {
+fn split_argv<'a>(line: &'a [u8], argv: &mut [&'a [u8]]) -> usize {
     let mut count = 0;
     let mut start = 0;
     let mut in_token = false;
@@ -62,7 +62,7 @@ pub extern "C" fn _start() -> ! {
             continue;
         }
         if args[0] == b"exit" {
-            break;
+            libc_lite::exit(0);
         }
         if args[0] == b"cd" {
             continue;
@@ -76,7 +76,7 @@ pub extern "C" fn _start() -> ! {
         let name_len = args[0].len().min(58);
         path[5..][..name_len].copy_from_slice(&args[0][..name_len]);
         let path_str = core::str::from_utf8(&path[..5 + name_len]).unwrap_or("/bin/hello");
-        unsafe { libc_lite::spawn(path_str); }
+        libc_lite::spawn(path_str);
     }
 }
 

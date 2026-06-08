@@ -1,18 +1,24 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "boot"))
-from conftest import run_qemu
+def test_kernel_start(qemu_output):
+    assert "kernel started" in qemu_output.lower()
 
 
-def test_kernel_start():
-    output = run_qemu(timeout=5)
-    assert "kernel started" in output.lower()
+def test_memory_init(qemu_output):
+    assert "memory" in qemu_output.lower()
 
 
-def test_memory_init():
-    output = run_qemu(timeout=5)
-    assert "memory" in output.lower()
+def test_initramfs_mount(qemu_output):
+    assert "initramfs mounted" in qemu_output.lower()
 
 
-def test_timer_tick():
-    output = run_qemu(timeout=5)
-    assert "tick" in output.lower()
+def test_timer_tick(qemu_output):
+    assert "tick" in qemu_output.lower()
+
+
+def test_framebuffer_detected(qemu_output):
+    output = qemu_output.lower()
+    assert "framebuffer" in output
+    assert "framebuffer 0x0" not in output
+
+
+def test_memory_map_summary(qemu_output):
+    assert "usable memory" in qemu_output.lower()

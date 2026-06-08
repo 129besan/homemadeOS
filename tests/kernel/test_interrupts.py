@@ -1,13 +1,6 @@
-import sys
-sys.path.insert(0, "tests/boot")
-from conftest import run_qemu
+def test_timer_interrupt(qemu_output):
+    assert "tick" in qemu_output.lower() or "timer" in qemu_output.lower()
 
 
-def test_timer_interrupt():
-    output = run_qemu(timeout=5)
-    assert "tick" in output.lower() or "timer" in output.lower()
-
-
-def test_breakpoint():
-    output = run_qemu(timeout=5)
-    assert "breakpoint" in output.lower()
+def test_breakpoint(qemu_output):
+    assert "breakpoint" in qemu_output.lower()

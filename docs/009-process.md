@@ -1,26 +1,26 @@
-# ELF Process Loader
+# ELF プロセスローダー
 
-## ELF64 Loading
+## ELF64 のロード
 
-1. Validate ELF magic, class, endianness, machine
-2. Walk program headers for PT_LOAD segments
-3. Map each segment into a new address space
-4. Build user stack with argv
-5. Create main thread with IP = e_entry
+1. ELF マジック、クラス、エンディアン、マシン種別を検証する
+2. プログラムヘッダから PT_LOAD セグメントを探す
+3. 各セグメントを新しいアドレス空間へマップする
+4. argv を含むユーザースタックを構築する
+5. `IP = e_entry` としてメインスレッドを作成する
 
-## Process Lifecycle
+## プロセスのライフサイクル
 
-1. `spawn_elf` reads file from initramfs
-2. Creates address space (with kernel mappings copied)
-3. Maps ELF segments and user stack
-4. Creates thread with `Tid` and `Pid`
-5. Enqueues thread in scheduler
-6. On exit, process becomes zombie
-7. Parent's `wait` reaps zombie
+1. `spawn_elf` が initramfs からファイルを読む
+2. カーネルマッピングをコピーしたアドレス空間を作る
+3. ELF セグメントとユーザースタックをマップする
+4. `Tid` と `Pid` を持つスレッドを作る
+5. スレッドをスケジューラのキューへ入れる
+6. 終了時にプロセスを zombie にする
+7. 親プロセスの `wait` が zombie を回収する
 
-## Limitations
+## 制限
 
-- No fork (no COW)
-- No dynamic linking
-- No `mmap` file-backed segments
-- Read-only ELF from initramfs only
+- fork はない（COW もない）
+- 動的リンクはない
+- `mmap` によるファイルバックドセグメントはない
+- initramfs 上の読み取り専用 ELF のみを扱う

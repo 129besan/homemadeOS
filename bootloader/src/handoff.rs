@@ -30,6 +30,7 @@ pub enum PixelFormat {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct MemoryRegion {
     pub start: u64,
     pub len: u64,

@@ -3,14 +3,14 @@
 #![feature(abi_efiapi)]
 
 mod elf_loader;
+mod framebuffer;
 mod handoff;
 mod memory_map;
 mod uefi;
 
 use core::ffi::c_void;
-use elf_loader::{validate_elf, program_headers, Elf64Header, PT_LOAD};
+use elf_loader::{program_header, read_header, validate_elf, PT_LOAD};
 use handoff::BootInfo;
-use memory_map::MemoryDescriptor;
 use uefi::SystemTable;
 
 static mut BOOT_INFO: BootInfo = BootInfo {
@@ -31,25 +31,27 @@ static mut BOOT_INFO: BootInfo = BootInfo {
     rsdp_addr: 0,
 };
 
+static mut MEMORY_MAP_BUFFER: [u8; 65536] = [0; 65536];
+static mut MEMORY_REGIONS: [handoff::MemoryRegion; 256] = [handoff::MemoryRegion {
+    start: 0,
+    len: 0,
+    region_type: 0,
+}; 256];
+
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-fn kernel_phys_range() -> (u64, u64) {
-    (0x100000, 0x200000)
-}
-
 fn load_kernel(data: &[u8]) -> Option<u64> {
-    let header = unsafe { &*(data.as_ptr() as *const Elf64Header) };
-    if !validate_elf(header) {
+    let header = read_header(data)?;
+    if !validate_elf(&header) {
         return None;
     }
-    let phdrs = program_headers(header);
-    for ph in phdrs {
+    for i in 0..header.e_phnum as usize {
+        let ph = program_header(data, &header, i)?;
         if ph.p_type == PT_LOAD {
             let start = ph.p_vaddr;
-            let end = start + ph.p_memsz;
             let file_start = ph.p_offset as usize;
             let file_end = file_start + ph.p_filesz as usize;
             if file_end > data.len() {
@@ -89,8 +91,11 @@ pub extern "efiapi" fn efi_main(
         "/../target/x86_64-unknown-none/debug/kernel"
     ));
 
-    let header = unsafe { &*(kernel_data.as_ptr() as *const Elf64Header) };
-    if !validate_elf(header) {
+    let header = match read_header(kernel_data) {
+        Some(header) => header,
+        None => loop {},
+    };
+    if !validate_elf(&header) {
         loop {}
     }
 
@@ -100,10 +105,13 @@ pub extern "efiapi" fn efi_main(
     };
 
     // Find kernel physical range from PT_LOAD segments
-    let phdrs = program_headers(header);
     let mut phys_start = u64::MAX;
     let mut phys_end = 0u64;
-    for ph in phdrs {
+    for i in 0..header.e_phnum as usize {
+        let ph = match program_header(kernel_data, &header, i) {
+            Some(ph) => ph,
+            None => loop {},
+        };
         if ph.p_type == PT_LOAD {
             let start = ph.p_vaddr;
             let end = start + ph.p_memsz;
@@ -117,17 +125,86 @@ pub extern "efiapi" fn efi_main(
     boot_info.kernel_phys_end = phys_end;
     boot_info.initramfs_start = 0;
     boot_info.initramfs_len = 0;
-
-    let bt = st.boot_services;
-    if !bt.is_null() {
-        let exit: extern "efiapi" fn(*mut c_void, usize, usize) -> usize =
-            unsafe { core::mem::transmute((*bt).exit_boot_services) };
-        let _ = exit(_image_handle, 0, 0);
+    if let Some(framebuffer) = framebuffer::detect_framebuffer(st) {
+        boot_info.framebuffer_base = framebuffer.base;
+        boot_info.framebuffer_width = framebuffer.width;
+        boot_info.framebuffer_height = framebuffer.height;
+        boot_info.framebuffer_stride = framebuffer.stride;
+        boot_info.framebuffer_format = framebuffer.format;
     }
 
-    let entry_fn: extern "C" fn(*const BootInfo) -> ! =
+    let bs = unsafe { &*st.boot_services };
+    let get_memory_map: uefi::GetMemoryMapFn = unsafe { core::mem::transmute(bs.get_memory_map) };
+    let exit_boot_services: uefi::ExitBootServicesFn =
+        unsafe { core::mem::transmute(bs.exit_boot_services) };
+
+    let mut region_count = 0usize;
+    let mut exited_boot_services = false;
+    for _ in 0..3 {
+        let mut memory_map_size = core::mem::size_of::<[u8; 65536]>();
+        let mut map_key: usize = 0;
+        let mut descriptor_size: usize = 0;
+        let mut descriptor_version: u32 = 0;
+
+        let status = get_memory_map(
+            &mut memory_map_size,
+            unsafe { MEMORY_MAP_BUFFER.as_mut_ptr() },
+            &mut map_key,
+            &mut descriptor_size,
+            &mut descriptor_version,
+        );
+        if status != 0 {
+            loop {}
+        }
+
+        let num_entries = memory_map_size / descriptor_size;
+        region_count = convert_memory_map(
+            unsafe { MEMORY_MAP_BUFFER.as_ptr() },
+            num_entries,
+            descriptor_size,
+            unsafe { &mut MEMORY_REGIONS },
+        );
+
+        let status = exit_boot_services(_image_handle, map_key);
+        if status == 0 {
+            exited_boot_services = true;
+            break;
+        }
+    }
+    if !exited_boot_services {
+        loop {}
+    }
+
+    boot_info.memory_map_ptr = unsafe { MEMORY_REGIONS.as_ptr() as u64 };
+    boot_info.memory_map_len = region_count as u64;
+
+    let entry_fn: extern "sysv64" fn(*const BootInfo) -> ! =
         unsafe { core::mem::transmute(entry as usize) };
     unsafe {
         entry_fn(&BOOT_INFO as *const BootInfo);
     }
+}
+
+fn convert_memory_map(
+    efi_map: *const u8,
+    efi_entries: usize,
+    efi_desc_size: usize,
+    out: &mut [handoff::MemoryRegion],
+) -> usize {
+    let mut count = 0;
+    for i in 0..efi_entries {
+        let desc = unsafe { efi_map.add(i * efi_desc_size) as *const memory_map::MemoryDescriptor };
+        let ty = unsafe { (*desc).descriptor_type };
+        let region_type = memory_map::region_type_from_efi(ty);
+        let pages = unsafe { (*desc).number_of_pages };
+        if pages > 0 && count < out.len() {
+            out[count] = handoff::MemoryRegion {
+                start: unsafe { (*desc).physical_start },
+                len: pages * 4096,
+                region_type,
+            };
+            count += 1;
+        }
+    }
+    count
 }

@@ -1,8 +1,2 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "boot"))
-from conftest import run_qemu
-
-
-def test_hello():
-    output = run_qemu(timeout=5)
-    assert "hello" in output.lower()
+def test_hello(qemu_output):
+    assert "hello" in qemu_output.lower()

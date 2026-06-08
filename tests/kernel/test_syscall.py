@@ -1,23 +1,26 @@
-import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "boot"))
-from conftest import run_qemu
+def test_syscall_write(qemu_output):
+    assert "write" in qemu_output.lower()
 
 
-def test_syscall_write():
-    output = run_qemu(timeout=5)
-    assert "write" in output.lower()
+def test_syscall_getpid(qemu_output):
+    assert "getpid" in qemu_output.lower()
 
 
-def test_syscall_getpid():
-    output = run_qemu(timeout=5)
-    assert "getpid" in output.lower()
+def test_syscall_spawn(qemu_output):
+    assert "spawn" in qemu_output.lower()
 
 
-def test_syscall_spawn():
-    output = run_qemu(timeout=5)
-    assert "spawn" in output.lower()
+def test_syscall_wait(qemu_output):
+    assert "wait" in qemu_output.lower()
 
 
-def test_syscall_wait():
-    output = run_qemu(timeout=5)
-    assert "wait" in output.lower()
+def test_syscall_fs_read(qemu_output):
+    assert "syscall fs read" in qemu_output.lower()
+
+
+def test_syscall_handler_read(qemu_output):
+    assert "syscall handler read" in qemu_output.lower()
+
+
+def test_syscall_spawn_elf(qemu_output):
+    assert "syscall spawn elf" in qemu_output.lower()

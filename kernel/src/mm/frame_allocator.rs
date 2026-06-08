@@ -1,5 +1,6 @@
 use crate::mm::addr::{PhysAddr, PhysFrame, PAGE_SIZE};
-use crate::mm::memory_map::MemoryRegion;
+use crate::mm::memory_map::{MemoryRegion, MemoryRegionType, parse_memory_map};
+use crate::mm::paging::page_table::PageTable;
 use crate::sync::spinlock::SpinLock;
 use crate::BootInfo;
 
@@ -17,9 +18,67 @@ pub fn init_frame_allocator(boot_info: &BootInfo) {
         *slot = 0;
     }
     let mut alloc = FrameAllocator::new(bitmap, total_frames);
+
+    let regions = parse_memory_map(boot_info);
+    for r in regions {
+        if r.region_type != MemoryRegionType::Usable as u32 {
+            alloc.reserve_region(PhysAddr(r.start), r.length as usize);
+        }
+    }
+
     alloc.reserve_kernel(PhysAddr(boot_info.kernel_phys_start), PhysAddr(boot_info.kernel_phys_end));
     alloc.reserve_boot_info(boot_info);
+
+    let bitmap_len_bytes = bitmap_size * core::mem::size_of::<u64>();
+    alloc.reserve_region(PhysAddr(bitmap_phys), bitmap_len_bytes);
+
+    unsafe { reserve_page_tables(&mut alloc); }
+
     *FRAME_ALLOCATOR.lock() = Some(alloc);
+}
+
+unsafe fn reserve_page_tables(alloc: &mut FrameAllocator) {
+    let cr3: u64;
+    core::arch::asm!("mov {}, cr3", out(reg) cr3);
+    let pml4_addr = cr3 & !0xfff;
+    let pml4 = &*(pml4_addr as *const PageTable);
+
+    alloc.reserve_region(PhysAddr(pml4_addr), PAGE_SIZE as usize);
+
+    for i in 0..512 {
+        let pml4_entry = &pml4.entries[i];
+        if !pml4_entry.is_present() {
+            continue;
+        }
+        let pdpt_addr = pml4_entry.addr().0;
+        alloc.reserve_region(PhysAddr(pdpt_addr), PAGE_SIZE as usize);
+
+        let pdpt = &*(pdpt_addr as *const PageTable);
+        for j in 0..512 {
+            let pdpt_entry = &pdpt.entries[j];
+            if !pdpt_entry.is_present() {
+                continue;
+            }
+            if pdpt_entry.0 & (1 << 7) != 0 {
+                continue;
+            }
+            let pd_addr = pdpt_entry.addr().0;
+            alloc.reserve_region(PhysAddr(pd_addr), PAGE_SIZE as usize);
+
+            let pd = &*(pd_addr as *const PageTable);
+            for k in 0..512 {
+                let pd_entry = &pd.entries[k];
+                if !pd_entry.is_present() {
+                    continue;
+                }
+                if pd_entry.0 & (1 << 7) != 0 {
+                    continue;
+                }
+                let pt_addr = pd_entry.addr().0;
+                alloc.reserve_region(PhysAddr(pt_addr), PAGE_SIZE as usize);
+            }
+        }
+    }
 }
 
 fn detect_total_memory(boot_info: &BootInfo) -> u64 {
@@ -39,6 +98,7 @@ pub struct FrameAllocator {
     bitmap: &'static mut [u64],
     total_frames: usize,
     used_frames: usize,
+    next_free: usize,
 }
 
 impl FrameAllocator {
@@ -47,6 +107,7 @@ impl FrameAllocator {
             bitmap,
             total_frames,
             used_frames: 0,
+            next_free: 0,
         }
     }
 
@@ -55,7 +116,7 @@ impl FrameAllocator {
     }
 
     pub fn alloc(&mut self) -> Option<PhysFrame> {
-        for i in 0..self.total_frames {
+        for i in self.next_free..self.total_frames {
             let idx = i / 64;
             let bit = i % 64;
             if idx >= self.bitmap.len() {
@@ -64,9 +125,24 @@ impl FrameAllocator {
             if (self.bitmap[idx] & (1 << bit)) == 0 {
                 self.bitmap[idx] |= 1 << bit;
                 self.used_frames += 1;
+                self.next_free = i + 1;
                 return Some(PhysFrame { number: i as u64 });
             }
         }
+        for i in 0..self.next_free {
+            let idx = i / 64;
+            let bit = i % 64;
+            if idx >= self.bitmap.len() {
+                break;
+            }
+            if (self.bitmap[idx] & (1 << bit)) == 0 {
+                self.bitmap[idx] |= 1 << bit;
+                self.used_frames += 1;
+                self.next_free = i + 1;
+                return Some(PhysFrame { number: i as u64 });
+            }
+        }
+        self.next_free = 0;
         None
     }
 

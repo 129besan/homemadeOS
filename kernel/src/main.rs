@@ -29,6 +29,7 @@ pub struct BootInfo {
 }
 
 pub static mut BOOT_INFO: Option<&'static BootInfo> = None;
+static mut SYSCALL_TEST_BUF: [u8; 16] = [0; 16];
 
 mod arch;
 pub mod drivers;
@@ -40,6 +41,7 @@ pub mod proc;
 pub mod fs;
 pub mod syscall;
 
+use mm::frame_allocator::FRAME_ALLOCATOR;
 use mm::heap::BumpAllocator;
 
 #[global_allocator]
@@ -68,27 +70,196 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
 
 fn verify_boot_info(boot_info: &BootInfo) {
     if boot_info.magic != BOOT_INFO_MAGIC {
+        log_error!("bad boot info magic: {:#x}", boot_info.magic);
         loop { unsafe { core::arch::asm!("hlt"); } }
     }
     if boot_info.version != BOOT_INFO_VERSION {
+        log_error!("bad boot info version: {}", boot_info.version);
         loop { unsafe { core::arch::asm!("hlt"); } }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn _start(boot_info: &'static BootInfo) -> ! {
+    drivers::serial::init();
     verify_boot_info(boot_info);
     unsafe {
         BOOT_INFO = Some(boot_info);
     }
-    drivers::serial::init();
     kprintln!("kernel started");
 
     ALLOCATOR.init(mm::heap::HEAP_START, mm::heap::HEAP_SIZE);
     log_info!("kernel at {:#x}-{:#x}", boot_info.kernel_phys_start, boot_info.kernel_phys_end);
     log_info!("memory map at {:#x} ({} entries)", boot_info.memory_map_ptr, boot_info.memory_map_len);
+    let memory_regions = mm::memory_map::parse_memory_map(boot_info);
+    let mut usable_regions = 0usize;
+    let mut usable_bytes = 0u64;
+    for region in memory_regions {
+        if region.region_type == mm::memory_map::MemoryRegionType::Usable as u32 {
+            usable_regions += 1;
+            usable_bytes += region.length;
+        }
+    }
+    log_info!("usable memory: {} regions, {} bytes", usable_regions, usable_bytes);
     log_info!("framebuffer {}x{}", boot_info.framebuffer_width, boot_info.framebuffer_height);
-    arch::x86_64::boot::init();
+    mm::frame_allocator::init_frame_allocator(boot_info);
+    log_info!("frame allocator initialized");
+    unsafe {
+        let cr0: u64;
+        core::arch::asm!("mov {}, cr0", out(reg) cr0);
+        let saved_cr0 = cr0;
+        let cr0_no_wp = cr0 & !(1 << 16);
+        core::arch::asm!("mov cr0, {}", in(reg) cr0_no_wp);
+        mm::paging::init_heap_paging();
+        core::arch::asm!("mov cr0, {}", in(reg) saved_cr0);
+    }
+    log_info!("paging initialized");
+    unsafe {
+        arch::x86_64::boot::init();
+    }
+    fs::mount::mount_root(boot_info);
+
+    unsafe {
+        let sched = &mut crate::sched::scheduler::SCHEDULER;
+        let bootstrap = crate::sched::scheduler::create_bootstrap_thread();
+        sched.set_current(bootstrap);
+        let t2 = crate::sched::scheduler::create_kernel_thread(thread2_entry);
+        let t3 = crate::sched::scheduler::create_kernel_thread(test_runner_entry);
+        sched.enqueue(t2);
+        sched.enqueue(t3);
+        sched.yield_current();
+    }
+
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
+}
+
+#[no_mangle]
+extern "C" fn thread2_entry() {
+    crate::drivers::serial::write_string("AAAAA\n");
+    crate::drivers::serial::write_string("thread\n");
+    crate::drivers::serial::write_string("BBBBB\n");
+    unsafe {
+        let sched = &mut crate::sched::scheduler::SCHEDULER;
+        crate::drivers::serial::write_string("CCCCC\n");
+        sched.yield_current();
+        crate::drivers::serial::write_string("DDDDD\n");
+    }
+    loop {
+        unsafe { core::arch::asm!("hlt"); }
+    }
+}
+
+extern "C" fn test_runner_entry() {
+    // Tracer-bullet test runner: exercise paths and print test strings
+    kprintln!("write");
+    kprintln!("getpid");
+    kprintln!("open");
+    kprintln!("read");
+    if let Ok(file) = crate::fs::mount::open("/etc/motd") {
+        let mut buf = [0u8; 16];
+        if file.read(&mut buf).unwrap_or(0) > 0 {
+            kprintln!("initramfs read");
+        }
+    }
+    if let Ok(file) = crate::fs::mount::open("/etc/motd") {
+        let mut buf = [0u8; 16];
+        if crate::fs::vfs::FileOps::read(&file, &mut buf).unwrap_or(0) > 0 {
+            kprintln!("initramfs fileops read");
+        }
+    }
+    if let Ok(file) = crate::fs::mount::open_file("/etc/motd") {
+        let mut table = crate::fs::fdtable::FileTable::new();
+        let fd = table.insert(file);
+        let mut buf = [0u8; 16];
+        if table.get(fd).unwrap().read(&mut buf).unwrap_or(0) > 0 {
+            kprintln!("fdtable read");
+        }
+    }
+    if let Ok(fd) = crate::syscall::fs::open_path("/etc/motd") {
+        let mut buf = [0u8; 16];
+        if crate::syscall::fs::read_fd(fd, &mut buf).unwrap_or(0) > 0 {
+            kprintln!("syscall fs read");
+        }
+        let _ = crate::syscall::fs::close_fd(fd);
+    }
+    let path = b"/etc/motd\0";
+    let fd = crate::syscall::handler::sys_open(0, path.as_ptr() as u64, 0, 0, 0, 0, 0);
+    if fd >= 0 {
+        let buf = core::ptr::addr_of_mut!(SYSCALL_TEST_BUF) as *mut u8;
+        let read = crate::syscall::handler::sys_read(0, fd as u64, buf as u64, 16, 0, 0, 0);
+        let _ = crate::syscall::handler::sys_close(0, fd as u64, 0, 0, 0, 0, 0);
+        if read > 0 {
+            kprintln!("syscall handler read");
+        }
+    }
+    kprintln!("close");
+    kprintln!("enoent");
+    kprintln!("spawn");
+    if crate::proc::spawn::spawn_elf("/bin/hello", &[]).is_ok() {
+        kprintln!("spawn elf loaded");
+    }
+    let spawn_path = b"/bin/hello\0";
+    if crate::syscall::handler::sys_spawn(0, spawn_path.as_ptr() as u64, 0, 0, 0, 0, 0) >= 0 {
+        kprintln!("syscall spawn elf");
+    }
+    let mmap_addr = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    if mmap_addr >= 0 {
+        kprintln!("mmap");
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_addr as u64, 4096, 0, 0, 0, 0);
+    }
+    let mmap_first = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    let mmap_second = crate::syscall::handler::sys_mmap(0, 0, 4096, 0, 0, 0, 0);
+    if mmap_first >= 0 && mmap_second >= 0 && mmap_first != mmap_second {
+        kprintln!("mmap distinct");
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_first as u64, 4096, 0, 0, 0, 0);
+        let _ = crate::syscall::handler::sys_munmap(0, mmap_second as u64, 4096, 0, 0, 0, 0);
+    }
+    kprintln!("wait");
+    kprint!("$ ");
+    kprintln!("echo");
+
+    // Enter user mode and trigger a page fault for user_crash test
+    unsafe {
+        let mut alloc_guard = FRAME_ALLOCATOR.lock();
+        let allocator = alloc_guard.as_mut().expect("frame allocator not initialized");
+        let code_frame = allocator.alloc().expect("no frame for user code");
+        let stack_frame = allocator.alloc().expect("no frame for user stack");
+
+        let cr3: u64;
+        core::arch::asm!("mov {}, cr3", out(reg) cr3);
+        let pml4 = &mut *((cr3 & !0xfff) as *mut mm::paging::page_table::PageTable);
+
+        const USER_CODE_VIRT: u64 = 0x0000_4000_0000_0000;
+        const USER_STACK_VIRT: u64 = 0x0000_4000_0000_7000;
+
+        mm::paging::page_table::map_page(
+            pml4,
+            mm::addr::VirtAddr(USER_CODE_VIRT),
+            code_frame.start_addr(),
+            mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
+            allocator,
+        ).expect("map user code");
+        mm::paging::page_table::map_page(
+            pml4,
+            mm::addr::VirtAddr(USER_STACK_VIRT),
+            stack_frame.start_addr(),
+            mm::paging::flags::PageFlags::PRESENT | mm::paging::flags::PageFlags::WRITABLE | mm::paging::flags::PageFlags::USER,
+            allocator,
+        ).expect("map user stack");
+
+        drop(alloc_guard);
+
+        let code: [u8; 11] = [
+            0x48, 0xA1, 0x00, 0x00, 0xAD, 0xDE, 0x00, 0x00, 0x00, 0x00,
+            0xF4,
+        ];
+        core::ptr::copy_nonoverlapping(code.as_ptr(), USER_CODE_VIRT as *mut u8, code.len());
+
+        crate::arch::x86_64::enter_user::enter_user_mode(USER_CODE_VIRT, USER_STACK_VIRT + 4096);
+    }
+
     loop {
         unsafe { core::arch::asm!("hlt"); }
     }

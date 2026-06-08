@@ -1,59 +1,67 @@
 #![no_std]
 
-pub unsafe fn write(fd: usize, buf: &[u8]) -> isize {
+pub fn write(fd: usize, buf: &[u8]) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 1 => ret,
-        in("rdi") fd,
-        in("rsi") buf.as_ptr(),
-        in("rdx") buf.len(),
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 1usize => ret,
+            in("rdi") fd,
+            in("rsi") buf.as_ptr(),
+            in("rdx") buf.len(),
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
-pub unsafe fn read(fd: usize, buf: &mut [u8]) -> isize {
+pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 2 => ret,
-        in("rdi") fd,
-        in("rsi") buf.as_mut_ptr(),
-        in("rdx") buf.len(),
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 2usize => ret,
+            in("rdi") fd,
+            in("rsi") buf.as_mut_ptr(),
+            in("rdx") buf.len(),
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
-pub unsafe fn open(path: &str, flags: usize) -> isize {
+pub fn open(path: &str, flags: usize) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 3 => ret,
-        in("rdi") path.as_ptr(),
-        in("rsi") flags,
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 3usize => ret,
+            in("rdi") path.as_ptr(),
+            in("rsi") flags,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
-pub unsafe fn close(fd: usize) -> isize {
+pub fn close(fd: usize) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 4 => ret,
-        in("rdi") fd,
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 4usize => ret,
+            in("rdi") fd,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
@@ -61,36 +69,40 @@ pub fn exit(code: i32) -> ! {
     unsafe {
         core::arch::asm!(
             "syscall",
-            in("rax") 0,
+            in("rax") 0usize,
             in("rdi") code as u64,
             options(noreturn),
         );
     }
 }
 
-pub unsafe fn spawn(path: &str) -> isize {
+pub fn spawn(path: &str) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 5 => ret,
-        in("rdi") path.as_ptr(),
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 5usize => ret,
+            in("rdi") path.as_ptr(),
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
-pub unsafe fn wait(pid: usize) -> isize {
+pub fn wait(pid: usize) -> isize {
     let ret: isize;
-    core::arch::asm!(
-        "syscall",
-        inlateout("rax") 6 => ret,
-        in("rdi") pid,
-        lateout("rcx") _,
-        lateout("r11") _,
-        options(nostack),
-    );
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 6usize => ret,
+            in("rdi") pid,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
     ret
 }
 
@@ -99,7 +111,52 @@ pub fn getpid() -> isize {
     unsafe {
         core::arch::asm!(
             "syscall",
-            inlateout("rax") 7 => ret,
+            inlateout("rax") 7usize => ret,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+    ret
+}
+
+pub fn yield_now() {
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            in("rax") 8usize,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+}
+
+pub fn mmap(addr: usize, len: usize, prot: usize) -> isize {
+    let ret: isize;
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 9usize => ret,
+            in("rdi") addr,
+            in("rsi") len,
+            in("rdx") prot,
+            lateout("rcx") _,
+            lateout("r11") _,
+            options(nostack),
+        );
+    }
+    ret
+}
+
+pub fn munmap(addr: usize, len: usize) -> isize {
+    let ret: isize;
+    unsafe {
+        core::arch::asm!(
+            "syscall",
+            inlateout("rax") 10usize => ret,
+            in("rdi") addr,
+            in("rsi") len,
             lateout("rcx") _,
             lateout("r11") _,
             options(nostack),

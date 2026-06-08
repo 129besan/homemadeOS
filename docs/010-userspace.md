@@ -1,28 +1,28 @@
-# Userspace and Shell
+# ユーザー空間とシェル
 
-## Programs
+## プログラム
 
-| Program | Path       | Description         |
+| プログラム | パス | 説明 |
 |---------|------------|---------------------|
-| init    | /init      | First process       |
-| shell   | /bin/shell | Interactive shell   |
-| hello   | /bin/hello | Print "hello"       |
-| echo    | /bin/echo  | Print arguments     |
-| cat     | /bin/cat   | Read file to stdout |
-| ls      | /bin/ls    | List directory      |
+| init | /init | 最初のプロセス |
+| shell | /bin/shell | 対話シェル |
+| hello | /bin/hello | `hello` を出力する |
+| echo | /bin/echo | 引数を出力する |
+| cat | /bin/cat | ファイルを標準出力へ出力する |
+| ls | /bin/ls | ディレクトリの内容を列挙する |
 
-## Shell Features
+## シェルの機能
 
-- Prompt: `$ `
-- Line input with backspace
-- Whitespace tokenization
-- Builtins: `exit`, `cd`, `pwd`
-- External command execution from `/bin`
+- プロンプト: `$ `
+- バックスペースに対応した行入力
+- 空白によるトークン分割
+- 組み込みコマンド: `exit`、`cd`、`pwd`
+- `/bin` にある外部コマンドの実行
 
-## Init Flow
+## 初期化の流れ
 
-1. Kernel mounts initramfs as root
-2. Kernel spawns `/init`
-3. `/init` opens `/dev/console` for stdin/stdout/stderr
-4. `/init` spawns `/bin/shell` as the interactive session
-5. Shell reads commands and spawns programs
+1. カーネルが initramfs をルートとしてマウントする
+2. カーネルが `/init` を起動する
+3. `/init` が stdin/stdout/stderr 用に `/dev/console` を開く
+4. `/init` が対話セッションとして `/bin/shell` を起動する
+5. シェルがコマンドを読み、プログラムを起動する

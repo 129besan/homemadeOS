@@ -78,6 +78,9 @@ pub fn map_loadable_segments(
     data: &[u8],
     address_space: &mut crate::mm::paging::address_space::AddressSpace,
 ) -> Result<u64, ()> {
+    use crate::mm::addr::{VirtAddr, PAGE_SIZE};
+    use crate::mm::paging::flags::PageFlags;
+
     let header = unsafe { &*(data.as_ptr() as *const ElfHeader) };
     let phoff = header.e_phoff as usize;
     let phentsize = header.e_phentsize as usize;
@@ -92,11 +95,42 @@ pub fn map_loadable_segments(
 
         let file_start = ph.p_offset as usize;
         let file_end = file_start + ph.p_filesz as usize;
+        if ph.p_memsz < ph.p_filesz || file_end > data.len() {
+            return Err(());
+        }
         let file_data = &data[file_start..file_end];
         let vaddr = ph.p_vaddr;
+        let page_start = vaddr & !(PAGE_SIZE - 1);
+        let page_offset = vaddr - page_start;
+        let total_len = page_offset + ph.p_memsz;
+        let page_count = (total_len + PAGE_SIZE - 1) / PAGE_SIZE;
+        let mut flags = PageFlags::USER;
+        if ph.p_flags & 0x2 != 0 {
+            flags |= PageFlags::WRITABLE;
+        }
+
+        for page in 0..page_count {
+            let page_vaddr = page_start + page * PAGE_SIZE;
+            let phys = address_space.map_user_page(VirtAddr(page_vaddr), flags)?;
+            let copy_start = page_vaddr.max(vaddr);
+            let copy_end = (page_vaddr + PAGE_SIZE).min(vaddr + ph.p_filesz);
+
+            if copy_start < copy_end {
+                let src_offset = (copy_start - vaddr) as usize;
+                let dst_offset = (copy_start - page_vaddr) as usize;
+                let len = (copy_end - copy_start) as usize;
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        file_data[src_offset..src_offset + len].as_ptr(),
+                        (phys.0 as usize + dst_offset) as *mut u8,
+                        len,
+                    );
+                }
+            }
+        }
 
         crate::log_info!(
-            "load segment vaddr={:#x} filesz={} memsz={} flags={}",
+            "spawn segment mapped vaddr={:#x} filesz={} memsz={} flags={}",
             vaddr, ph.p_filesz, ph.p_memsz, ph.p_flags
         );
     }

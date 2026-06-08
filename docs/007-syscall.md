@@ -1,39 +1,39 @@
-# Syscall ABI
+# システムコール ABI
 
-## Calling Convention
+## 呼出規約
 
-Arguments passed in registers:
+引数はレジスタで渡す。
 
-| Register | Purpose |
+| レジスタ | 用途 |
 |----------|---------|
-| rax      | syscall number |
-| rdi      | arg0 |
-| rsi      | arg1 |
-| rdx      | arg2 |
-| r10      | arg3 |
-| r8       | arg4 |
-| r9       | arg5 |
-| rax      | return value |
+| rax | システムコール番号 |
+| rdi | 引数 0 |
+| rsi | 引数 1 |
+| rdx | 引数 2 |
+| r10 | 引数 3 |
+| r8 | 引数 4 |
+| r9 | 引数 5 |
+| rax | 戻り値 |
 
-## Syscall Table
+## システムコール表
 
-| # | Name   | Description          |
+| # | 名前 | 説明 |
 |---|--------|----------------------|
-| 0 | exit   | terminate process    |
-| 1 | write  | write to fd          |
-| 2 | read   | read from fd         |
-| 3 | open   | open file            |
-| 4 | close  | close fd             |
-| 5 | spawn  | create process       |
-| 6 | wait   | wait for child       |
-| 7 | getpid | get process id       |
-| 8 | yield  | yield CPU            |
-| 9 | mmap   | allocate memory      |
-| 10| munmap | free memory          |
+| 0 | exit | プロセスを終了する |
+| 1 | write | fd へ書き込む |
+| 2 | read | fd から読み込む |
+| 3 | open | ファイルを開く |
+| 4 | close | fd を閉じる |
+| 5 | spawn | プロセスを作成する |
+| 6 | wait | 子プロセスを待つ |
+| 7 | getpid | プロセス ID を得る |
+| 8 | yield | CPU の実行権を譲る |
+| 9 | mmap | メモリを割り当てる |
+| 10 | munmap | メモリを解放する |
 
-## Error Handling
+## エラー処理
 
-Negative return values indicate errors (errno style):
+負の戻り値は errno 形式のエラーを表す。
 - `-1` EPERM
 - `-9` EBADF
 - `-14` EFAULT
