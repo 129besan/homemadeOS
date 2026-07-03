@@ -6,7 +6,8 @@
 make run
 ```
 
-シリアル出力を接続した QEMU でカーネルを起動する。
+Docker 開発環境内でビルドしてから、シリアル出力を接続した QEMU でカーネルを起動する。
+終了したい場合はターミナルで QEMU を停止する。
 
 普段の開発では、コンテナの作成・破棄を毎回行わないよう常駐コンテナを使う。
 
@@ -15,22 +16,16 @@ docker compose up -d dev
 docker compose exec dev python3 -m pytest tests/boot/test_boot.py::test_kernel_start -v
 ```
 
-対象テストを先に実行し、全テストは節目や統合前に実行する。現在のテストは各テスト関数が
-QEMU を個別起動するため、全件実行には時間がかかる。
+対象テストを先に実行し、全テストは節目や統合前に実行する。現在の boot smoke は
+session fixture で QEMU 出力を共有する。
+
+`tests/kernel/` は予定テストとして skip している。新しい kernel 機能に着手するときは、
+対象テストを skip から戻し、期待した理由で失敗することを確認してから実装する。
 
 ## GDB
 
-```bash
-qemu-system-x86_64 -s -S -cdrom myos.iso
-```
-
-別のターミナルで次を実行する。
-```bash
-gdb target/kernel.elf
-(gdb) target remote :1234
-(gdb) break kernel_main
-(gdb) continue
-```
+`tools/run_qemu.py` に GDB 待機オプションはまだない。必要になったら、同じ pflash/IDE
+構成に `-s -S` を足して起動し、別のターミナルから `gdb` で接続する。
 
 ## シリアルログ
 

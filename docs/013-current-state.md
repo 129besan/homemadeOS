@@ -4,11 +4,9 @@
 
 ## ブランチ
 
-以前の作業は `main` 上で直接行っていた。今後の作業では対象を絞った
-`feature/*` ブランチを使う。
+現在の統合ブランチは `main`。今後の作業では対象を絞った `feature/*` ブランチを使う。
 
-古い `main` は既知の壊れたベースラインである。現在の feature ブランチでは
-カーネルエントリーのスモークテストが通る。
+現在の `main` はカーネルエントリーのスモークテストが通る baseline である。
 
 ## 動作しているもの
 
@@ -38,9 +36,19 @@ docker compose run --rm dev python3 -m pytest tests/boot/test_boot.py::test_kern
 kernel started
 ```
 
+全体テストは boot smoke と tools test が通り、`tests/kernel/` は予定テストとして skip する。
+
+```bash
+docker compose run --rm dev python3 -m pytest tests/ -v
+```
+
+現在の期待値は `7 passed, 27 skipped`。
+
 ## 残っている問題
 
-- 後半のスモークテストの多くは、動作中の機能ではなく予定している振る舞いを記述している。
+- `tests/kernel/` の多くは、動作中の機能ではなく予定している振る舞いを記述している。
+- 予定テストは単語の部分一致が多く、機能ごとに観測可能な振る舞いへ書き直す必要がある。
+- GitHub Actions は失敗し続ける状態を避けるため、現在は手動実行のみである。
 
 ## 修正済みの問題
 
@@ -57,6 +65,9 @@ kernel started
 Docker でビルドとテストを実行する。
 
 ```bash
+make build
+make run
+make test
 docker compose run --rm dev python3 -m pytest tests/ -v
 ```
 
